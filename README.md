@@ -4,6 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/code-MIT-blue.svg)](LICENSE)
 [![Data: CC BY-NC 4.0](https://img.shields.io/badge/FlyWire%20data-CC%20BY--NC%204.0-lightgrey.svg)](data/LICENSE.md)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](pyproject.toml)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23265197.svg)](https://doi.org/10.5281/zenodo.23265197)
 
 LiquidAion Neural Observatory is experimental research software that couples a frozen,
 pretrained language model (**Qwen3-0.6B**) to a recurrent network whose connectivity is a
@@ -367,8 +368,26 @@ Project layout:
 
 ## Citation
 
-Please cite the archived release. `CITATION.cff` contains the metadata, and GitHub's
-**Cite this repository** button produces APA and BibTeX. Please also cite the FlyWire
+The software is archived on Zenodo. There are two DOIs:
+
+| DOI | Use it for |
+|---|---|
+| [`10.5281/zenodo.23265197`](https://doi.org/10.5281/zenodo.23265197) | The project across all versions (concept DOI). It always resolves to the latest version. |
+| [`10.5281/zenodo.23265198`](https://doi.org/10.5281/zenodo.23265198) | Exactly version 0.2.0, for reproducing the results in this README. |
+
+```bibtex
+@software{xell_liquidaion_2026,
+  author    = {Xell, Lexx},
+  title     = {LiquidAion Neural Observatory},
+  version   = {0.2.0},
+  publisher = {Zenodo},
+  year      = {2026},
+  doi       = {10.5281/zenodo.23265198},
+  url       = {https://github.com/Patternity/LiquidAion-Neural-Observatory}
+}
+```
+
+GitHub's **Cite this repository** button uses `CITATION.cff`. Please also cite the FlyWire
 publications above when you use the connectome data.
 
 ## License

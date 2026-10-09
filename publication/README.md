@@ -1,5 +1,10 @@
 # Publication assets
 
+- Repository: https://github.com/Patternity/LiquidAion-Neural-Observatory
+- Release: https://github.com/Patternity/LiquidAion-Neural-Observatory/releases/tag/v0.2.0
+- DOI, version 0.2.0: https://doi.org/10.5281/zenodo.23265198
+- DOI, all versions: https://doi.org/10.5281/zenodo.23265197
+
 All materials here come from real runs of the application: the pretrained Qwen3-0.6B
 (revision `c1899de2…`), an RTX 3070 Ti, and greedy decoding. Every directory includes the
 exact parameters (`capture.json`) and the full recording (`session.json`). A recording can

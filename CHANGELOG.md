@@ -3,6 +3,11 @@
 All notable changes to this project are documented here. Versions follow
 [Semantic Versioning](https://semver.org/); the project is experimental (0.x).
 
+## [Unreleased]
+
+### Added
+- Zenodo DOIs in the README and `CITATION.cff`: concept `10.5281/zenodo.23265197` and v0.2.0 `10.5281/zenodo.23265198`.
+
 ## [0.2.0] - 2026-10-09
 
 First public release.

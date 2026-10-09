@@ -17,6 +17,14 @@ authors:
 version: 0.2.0
 date-released: "2026-10-09"
 license: MIT
+doi: 10.5281/zenodo.23265197
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.23265197
+    description: "Concept DOI: all versions, resolves to the latest"
+  - type: doi
+    value: 10.5281/zenodo.23265198
+    description: "Version-specific DOI for release 0.2.0"
 repository-code: "https://github.com/Patternity/LiquidAion-Neural-Observatory"
 url: "https://github.com/Patternity/LiquidAion-Neural-Observatory"
 keywords:
