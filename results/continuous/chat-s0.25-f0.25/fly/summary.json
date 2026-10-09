@@ -1,0 +1,612 @@
+{
+  "condition": "fly",
+  "reset_interval": null,
+  "stop_reason": "total_tokens",
+  "generated_tokens": 5000,
+  "seconds": 107.79727710000043,
+  "tokens_per_second": 46.38336082795156,
+  "window": 128,
+  "max_window_seen": 128,
+  "window_shifts": 4885,
+  "forward_calls": 5000,
+  "reservoir_advances": 10000,
+  "resets": [],
+  "eos_suppressed": [
+    {
+      "step": 119,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 151,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 181,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 204,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 242,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 272,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 333,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 363,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 424,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 454,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 515,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 545,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 606,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 636,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 697,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 727,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 788,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 818,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 879,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 909,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 970,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1000,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1061,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1091,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1152,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1182,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1243,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1273,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1334,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1364,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1425,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1455,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1516,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1546,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1607,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1637,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1698,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1728,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1789,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1819,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1880,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1910,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1971,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2001,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2062,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2092,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2153,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2183,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2244,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2274,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2335,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2365,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2426,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2456,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2517,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2547,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2608,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2638,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2699,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2729,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2790,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2820,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2881,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2911,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2972,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3002,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3063,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3093,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3154,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3184,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3245,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3275,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3336,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3366,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3427,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3457,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3518,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3548,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3609,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3639,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3700,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3730,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3791,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3821,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3882,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3912,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3973,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4003,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4064,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4094,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4155,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4185,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4246,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4276,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4337,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4367,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4428,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4458,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4519,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4549,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4610,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4640,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4701,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4731,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4792,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4822,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4883,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4913,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4974,
+      "eos_token_id": 151645
+    }
+  ],
+  "peak_gpu_allocated_bytes": 1245608960,
+  "probes": [
+    {
+      "step": 128,
+      "probe_tokens": 16,
+      "context_tokens": 128,
+      "seed_tokens_in_context": 0,
+      "retained_state_rms": 0.1823497817089937,
+      "retained_vs_reset": {
+        "mean_kl_baseline_to_condition": 0.00015201721954658431,
+        "first_token_kl": 0.0010536736784028619,
+        "logit_rms_difference": 0.03235292434692383,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_retained": {
+        "mean_kl_baseline_to_condition": 0.001041012009419877,
+        "first_token_kl": 0.0021238142859860737,
+        "logit_rms_difference": 0.07756629586219788,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_reset": {
+        "mean_kl_baseline_to_condition": 0.0007646859714897895,
+        "first_token_kl": 0.0002946713822508498,
+        "logit_rms_difference": 0.0603594034910202,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "retained_first_argmax_matches_main": true
+    },
+    {
+      "step": 256,
+      "probe_tokens": 16,
+      "context_tokens": 128,
+      "seed_tokens_in_context": 0,
+      "retained_state_rms": 0.18900168769667097,
+      "retained_vs_reset": {
+        "mean_kl_baseline_to_condition": 1.704617568684728e-05,
+        "first_token_kl": 1.4204376622358473e-05,
+        "logit_rms_difference": 0.025944475084543228,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_retained": {
+        "mean_kl_baseline_to_condition": 9.855559146231566e-05,
+        "first_token_kl": 4.563459491980593e-05,
+        "logit_rms_difference": 0.06014005467295647,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_reset": {
+        "mean_kl_baseline_to_condition": 5.358276520744024e-05,
+        "first_token_kl": 8.873994204677806e-06,
+        "logit_rms_difference": 0.04567926377058029,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "retained_first_argmax_matches_main": true
+    },
+    {
+      "step": 512,
+      "probe_tokens": 16,
+      "context_tokens": 128,
+      "seed_tokens_in_context": 0,
+      "retained_state_rms": 0.17897314612884552,
+      "retained_vs_reset": {
+        "mean_kl_baseline_to_condition": 1.1343585949260288e-05,
+        "first_token_kl": 1.7301817286513244e-07,
+        "logit_rms_difference": 0.024601493030786514,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_retained": {
+        "mean_kl_baseline_to_condition": 5.1470575879640734e-05,
+        "first_token_kl": 6.675538292748177e-09,
+        "logit_rms_difference": 0.05305757373571396,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_reset": {
+        "mean_kl_baseline_to_condition": 2.5565057921517023e-05,
+        "first_token_kl": 1.658559036623572e-07,
+        "logit_rms_difference": 0.04435577616095543,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "retained_first_argmax_matches_main": true
+    },
+    {
+      "step": 1024,
+      "probe_tokens": 16,
+      "context_tokens": 128,
+      "seed_tokens_in_context": 0,
+      "retained_state_rms": 0.1852968477302739,
+      "retained_vs_reset": {
+        "mean_kl_baseline_to_condition": 4.3564453209361726e-06,
+        "first_token_kl": 3.0459494493400745e-07,
+        "logit_rms_difference": 0.023976052179932594,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_retained": {
+        "mean_kl_baseline_to_condition": 2.1501809904742477e-05,
+        "first_token_kl": 4.216635743806739e-07,
+        "logit_rms_difference": 0.059590891003608704,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_reset": {
+        "mean_kl_baseline_to_condition": 7.217442661913341e-06,
+        "first_token_kl": 4.8451000691947635e-08,
+        "logit_rms_difference": 0.05125278979539871,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "retained_first_argmax_matches_main": true
+    },
+    {
+      "step": 2048,
+      "probe_tokens": 16,
+      "context_tokens": 128,
+      "seed_tokens_in_context": 0,
+      "retained_state_rms": 0.17757459220097793,
+      "retained_vs_reset": {
+        "mean_kl_baseline_to_condition": 5.814223184973309e-06,
+        "first_token_kl": 3.3211651248532753e-06,
+        "logit_rms_difference": 0.019878897815942764,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_retained": {
+        "mean_kl_baseline_to_condition": 5.6319235294684263e-05,
+        "first_token_kl": 3.232959175778597e-06,
+        "logit_rms_difference": 0.05471380800008774,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_reset": {
+        "mean_kl_baseline_to_condition": 4.419893297600819e-05,
+        "first_token_kl": 1.129072055152476e-07,
+        "logit_rms_difference": 0.045038048177957535,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "retained_first_argmax_matches_main": true
+    },
+    {
+      "step": 4096,
+      "probe_tokens": 16,
+      "context_tokens": 128,
+      "seed_tokens_in_context": 0,
+      "retained_state_rms": 0.19857510103239132,
+      "retained_vs_reset": {
+        "mean_kl_baseline_to_condition": 1.9505412030316797e-06,
+        "first_token_kl": 7.277210424751901e-06,
+        "logit_rms_difference": 0.027076927945017815,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_retained": {
+        "mean_kl_baseline_to_condition": 8.52514408616091e-06,
+        "first_token_kl": 1.0246788436919752e-05,
+        "logit_rms_difference": 0.0642528310418129,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_reset": {
+        "mean_kl_baseline_to_condition": 5.5560123889097814e-06,
+        "first_token_kl": 3.565671087938662e-07,
+        "logit_rms_difference": 0.05296413227915764,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "retained_first_argmax_matches_main": true
+    }
+  ],
+  "final_state_rms": 0.1955370545806142
+}

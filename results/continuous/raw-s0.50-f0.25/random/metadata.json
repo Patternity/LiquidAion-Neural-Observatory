@@ -1,0 +1,61 @@
+{
+  "experiment": "continuous_sliding_window",
+  "config": {
+    "seed_text": "Однажды в студёную зимнюю пору",
+    "window": 128,
+    "total_tokens": 5000,
+    "condition": "random",
+    "strength": 0.5,
+    "feedback": 0.25,
+    "reset_interval": null,
+    "eos_policy": "suppress",
+    "checkpoints": [
+      128,
+      256,
+      512,
+      1024,
+      2048,
+      4096
+    ],
+    "probe_tokens": 16,
+    "snapshot_interval": 64,
+    "prompt_policy": "raw",
+    "instruction": "Продолжи текст."
+  },
+  "engine": {
+    "model": "Qwen/Qwen3-0.6B",
+    "model_revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+    "connectome_hash": "5c524dd9aca9557ab94ad04f36668e6a86d108c905f31d909b43cc916e5bae54",
+    "node_hash": "62f91abd6f9da4a4f5f81f8307c2a4be0e894c8d95ad240b8cba63178f1a20f4"
+  },
+  "reservoir_fingerprint": "a1f978e060b5c63ceadbdc8c567105a1449be9e96ef30da49c5dc46a319649ff",
+  "capture_layer": 6,
+  "steer_layer": 14,
+  "features": 64,
+  "seed": 42,
+  "decoding": "greedy argmax, no repetition penalty",
+  "tokenization": "raw continuation: tokenizer(seed, add_special_tokens=False); no chat template",
+  "prefix_token_ids": [],
+  "inference": "full recomputation of the bounded window each step, use_cache=False, positions 0..len-1",
+  "seed_token_ids": [
+    20353,
+    6949,
+    2108,
+    79105,
+    4552,
+    5805,
+    140830,
+    44022,
+    76395,
+    138812,
+    141475,
+    90046,
+    3780
+  ],
+  "stop_token_ids": [
+    151643,
+    151645
+  ],
+  "device": "cuda",
+  "started_utc": "2026-10-09T20:52:12.936623+00:00"
+}

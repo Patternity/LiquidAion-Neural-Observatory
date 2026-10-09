@@ -1,0 +1,18 @@
+{
+  "errors": [],
+  "summary": {
+    "stop_reason": "total_tokens",
+    "generated_tokens": 1000,
+    "tokens_per_second": 17.8942850298483,
+    "output": "publication/continuous/ui/run/20261010-011807-fly"
+  },
+  "passed": true,
+  "output": "publication/continuous/ui",
+  "tokens": 1000,
+  "window": 128,
+  "condition": "fly",
+  "strength": 0.25,
+  "feedback": 0.25,
+  "eos": "suppress",
+  "prompt_policy": "raw"
+}

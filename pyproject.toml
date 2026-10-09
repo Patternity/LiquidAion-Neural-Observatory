@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "liquidaion-fly"
-version = "0.2.0"
+version = "0.3.0.dev0"
 description = "Research software coupling a frozen Qwen3-0.6B transformer to a recurrent network built from authentic FlyWire Drosophila connectivity"
 readme = "README.md"
 license = "MIT"
@@ -36,6 +36,7 @@ Issues = "https://github.com/Patternity/LiquidAion-Neural-Observatory/issues"
 liquidaion-fly = "liquidaion_fly.cli:main"
 liquidaion-observatory = "liquidaion_fly.observatory:main"
 liquidaion-attractor = "liquidaion_fly.attractor:main"
+liquidaion-continuous = "liquidaion_fly.continuous:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

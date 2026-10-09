@@ -1,0 +1,270 @@
+{
+  "conditions": [
+    {
+      "condition": "clean",
+      "reset_interval": null,
+      "generated_tokens": 5000,
+      "stop_reason": "total_tokens",
+      "seconds": 98.83479926699874,
+      "tokens_per_second": 50.58946886200148,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 4885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 0.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": null,
+      "state_rms_last_1000_mean": null,
+      "rms_autocorrelation_peak": null,
+      "distinct_1": 0.0026,
+      "distinct_2": 0.003200640128025605,
+      "exact_loop_onset_chunk": 0,
+      "checkpoint_kl_retained_vs_reset": {},
+      "checkpoint_argmax_disagreement": {},
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 1,
+        "tokens": 5000,
+        "recovered": 0,
+        "list": [
+          {
+            "start": 0,
+            "end": 5000,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": ", в саду сидели птицы, и вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вд"
+        },
+        "middle": {
+          "token_offset": 2440,
+          "tokens": 120,
+          "text": " вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг"
+        },
+        "end": {
+          "token_offset": 4880,
+          "tokens": 120,
+          "text": "друг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг в"
+        }
+      }
+    },
+    {
+      "condition": "fly",
+      "reset_interval": null,
+      "generated_tokens": 5000,
+      "stop_reason": "total_tokens",
+      "seconds": 114.58836222099853,
+      "tokens_per_second": 43.63444858699395,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 4885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 2.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": 0.19858174216984717,
+      "state_rms_last_1000_mean": 0.19884136413299955,
+      "rms_autocorrelation_peak": {
+        "lag": 2,
+        "value": 0.7880681661097815
+      },
+      "distinct_1": 0.0026,
+      "distinct_2": 0.003200640128025605,
+      "exact_loop_onset_chunk": 0,
+      "checkpoint_kl_retained_vs_reset": {
+        "128": 7.341437878972312e-06,
+        "256": 5.414557593481713e-06,
+        "512": 7.109044505517536e-06,
+        "1024": 7.844125772239538e-06,
+        "2048": 7.109044505517536e-06,
+        "4096": 7.844125772239538e-06
+      },
+      "checkpoint_argmax_disagreement": {
+        "128": 0.0,
+        "256": 0.0,
+        "512": 0.0,
+        "1024": 0.0,
+        "2048": 0.0,
+        "4096": 0.0
+      },
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 1,
+        "tokens": 5000,
+        "recovered": 0,
+        "list": [
+          {
+            "start": 0,
+            "end": 5000,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": ", в саду сидели птицы, и вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вд"
+        },
+        "middle": {
+          "token_offset": 2440,
+          "tokens": 120,
+          "text": " вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг"
+        },
+        "end": {
+          "token_offset": 4880,
+          "tokens": 120,
+          "text": "друг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг в"
+        }
+      }
+    },
+    {
+      "condition": "fly_reset_512",
+      "reset_interval": 512,
+      "generated_tokens": 5000,
+      "stop_reason": "total_tokens",
+      "seconds": 114.87363120400005,
+      "tokens_per_second": 43.52608990936027,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 4885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 2.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": 0.1972785729969847,
+      "state_rms_last_1000_mean": 0.19739517417745298,
+      "rms_autocorrelation_peak": {
+        "lag": 512,
+        "value": 0.8434360610350271
+      },
+      "distinct_1": 0.0026,
+      "distinct_2": 0.003200640128025605,
+      "exact_loop_onset_chunk": 0,
+      "checkpoint_kl_retained_vs_reset": {
+        "128": 7.341437878972312e-06,
+        "256": 5.414557593481713e-06,
+        "512": 0.0,
+        "1024": 0.0,
+        "2048": 0.0,
+        "4096": 0.0
+      },
+      "checkpoint_argmax_disagreement": {
+        "128": 0.0,
+        "256": 0.0,
+        "512": 0.0,
+        "1024": 0.0,
+        "2048": 0.0,
+        "4096": 0.0
+      },
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 1,
+        "tokens": 5000,
+        "recovered": 0,
+        "list": [
+          {
+            "start": 0,
+            "end": 5000,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": ", в саду сидели птицы, и вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вд"
+        },
+        "middle": {
+          "token_offset": 2440,
+          "tokens": 120,
+          "text": " вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг"
+        },
+        "end": {
+          "token_offset": 4880,
+          "tokens": 120,
+          "text": "друг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг в"
+        }
+      }
+    },
+    {
+      "condition": "random",
+      "reset_interval": null,
+      "generated_tokens": 5000,
+      "stop_reason": "total_tokens",
+      "seconds": 114.33365039300043,
+      "tokens_per_second": 43.73165715267063,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 4885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 2.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": 0.17892432961264285,
+      "state_rms_last_1000_mean": 0.1793790155829259,
+      "rms_autocorrelation_peak": {
+        "lag": 2,
+        "value": 0.8459172059546619
+      },
+      "distinct_1": 0.0026,
+      "distinct_2": 0.003200640128025605,
+      "exact_loop_onset_chunk": 0,
+      "checkpoint_kl_retained_vs_reset": {
+        "128": 7.703918432940857e-07,
+        "256": 2.880357222147539e-06,
+        "512": 7.825463930382831e-07,
+        "1024": 2.8804253456947745e-06,
+        "2048": 7.825463930382831e-07,
+        "4096": 2.8804253456947745e-06
+      },
+      "checkpoint_argmax_disagreement": {
+        "128": 0.0,
+        "256": 0.0,
+        "512": 0.0,
+        "1024": 0.0,
+        "2048": 0.0,
+        "4096": 0.0
+      },
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 1,
+        "tokens": 5000,
+        "recovered": 0,
+        "list": [
+          {
+            "start": 0,
+            "end": 5000,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": ", в саду сидели птицы, и вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вд"
+        },
+        "middle": {
+          "token_offset": 2440,
+          "tokens": 120,
+          "text": " вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг"
+        },
+        "end": {
+          "token_offset": 4880,
+          "tokens": 120,
+          "text": "друг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг в"
+        }
+      }
+    }
+  ],
+  "figures": [
+    "reservoir_rms.png",
+    "checkpoint_kl.png",
+    "state_similarity.png",
+    "diversity.png"
+  ],
+  "first_divergence_from_clean": {
+    "fly": null,
+    "fly_reset_512": null,
+    "random": null
+  }
+}

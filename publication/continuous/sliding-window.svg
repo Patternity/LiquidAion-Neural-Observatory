@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 380" width="960" height="380" font-family="Inter, Arial, sans-serif">
+  <title>Sliding token window with a persistent reservoir</title>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#52514e"/>
+    </marker>
+  </defs>
+  <rect width="960" height="380" fill="#fcfcfb"/>
+  <text x="20" y="34" font-size="16" font-weight="700" fill="#0b0b0b">Generated text: thousands of tokens</text>
+  <!-- token strip -->
+  <g>
+    <rect x="20" y="52" width="920" height="40" rx="6" fill="#f0efec" stroke="#d6d5d0"/>
+    <rect x="20" y="52" width="560" height="40" rx="6" fill="#e4e3df"/>
+    <text x="300" y="77" text-anchor="middle" font-size="13" fill="#52514e">forgotten by Qwen: saved to the log only, never fed back</text>
+    <rect x="580" y="52" width="300" height="40" fill="#eaf2fc" stroke="#2a78d6" stroke-width="2"/>
+    <text x="730" y="70" text-anchor="middle" font-size="13" font-weight="700" fill="#0b0b0b">window: last 128 tokens</text>
+    <text x="730" y="86" text-anchor="middle" font-size="11" fill="#52514e">the only text Qwen sees</text>
+    <rect x="880" y="52" width="60" height="40" fill="#fde8de" stroke="#eb6834" stroke-width="2"/>
+    <text x="910" y="77" text-anchor="middle" font-size="12" fill="#0b0b0b">next</text>
+  </g>
+  <text x="20" y="114" font-size="11" fill="#52514e">token 0 («Однажды в студёную зимнюю пору»)</text>
+  <text x="940" y="44" text-anchor="end" font-size="11" fill="#52514e">… token 5 000</text>
+  <!-- step loop -->
+  <rect x="580" y="150" width="300" height="76" rx="8" fill="#ffffff" stroke="#2a78d6"/>
+  <text x="730" y="176" text-anchor="middle" font-size="13" font-weight="700" fill="#0b0b0b">Qwen3-0.6B, one forward pass</text>
+  <text x="730" y="196" text-anchor="middle" font-size="11" fill="#52514e">window recomputed, positions 0…127, no KV cache</text>
+  <text x="730" y="213" text-anchor="middle" font-size="11" fill="#52514e">layer 6 observed · layer 14 steered (last position)</text>
+  <line x1="730" y1="94" x2="730" y2="146" stroke="#52514e" stroke-width="2" marker-end="url(#a)"/>
+  <path d="M880 176 C916 176 914 130 910 98" stroke="#52514e" stroke-width="2" fill="none" marker-end="url(#a)"/>
+  <text x="876" y="138" text-anchor="end" font-size="11" fill="#52514e">argmax → next token</text>
+  <!-- reservoir -->
+  <rect x="120" y="262" width="400" height="76" rx="38" fill="#ffffff" stroke="#1baf7a" stroke-width="2"/>
+  <text x="320" y="290" text-anchor="middle" font-size="14" font-weight="700" fill="#0b0b0b">FlyWire reservoir · 512 neurons</text>
+  <text x="320" y="310" text-anchor="middle" font-size="11" fill="#52514e">state persists through the entire run</text>
+  <text x="320" y="326" text-anchor="middle" font-size="11" fill="#52514e">(or is reset every N tokens in the control)</text>
+  <path d="M600 226 C560 262 548 280 524 290" stroke="#52514e" stroke-width="2" fill="none" marker-end="url(#a)"/>
+  <text x="558" y="244" text-anchor="end" font-size="11" fill="#52514e">features + feedback</text>
+  <path d="M524 312 C620 320 700 290 720 230" stroke="#52514e" stroke-width="2" stroke-dasharray="5 4" fill="none" marker-end="url(#a)"/>
+  <text x="640" y="320" font-size="11" fill="#52514e">steering</text>
+  <text x="20" y="366" font-size="11" fill="#52514e">Exactly one forward pass and one capture + one feedback update per generated token, however long the window.</text>
+</svg>

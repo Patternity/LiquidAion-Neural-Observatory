@@ -1,0 +1,120 @@
+{
+  "conditions": [
+    {
+      "condition": "clean",
+      "reset_interval": null,
+      "generated_tokens": 1000,
+      "stop_reason": "total_tokens",
+      "seconds": 30.669883505001053,
+      "tokens_per_second": 32.60527545978253,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 0.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": null,
+      "state_rms_last_1000_mean": null,
+      "rms_autocorrelation_peak": null,
+      "distinct_1": 0.432,
+      "distinct_2": 0.7687687687687688,
+      "exact_loop_onset_chunk": null,
+      "checkpoint_kl_retained_vs_reset": {},
+      "checkpoint_argmax_disagreement": {},
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 0,
+        "tokens": 0,
+        "recovered": 0,
+        "list": []
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": " на прессе с posted посёлке птиц «Университета Энса в России» а система на некотором сайте содержала для вас заголовок с полностью содержанием ИД. Пользователь намеренно скрыл это и возвраты пока нет? Чтобы совместить эти два события с возможными выборами с E вопроса (7-в) напишите кнопку с выпадением ответов A, B, C, D и заполните их. Возможно, сделать кнопку с длиной"
+        },
+        "middle": {
+          "token_offset": 440,
+          "tokens": 120,
+          "text": ", что действительно я заметил. Возможно, вы сами используете Shell Script? Если да, то можете разрешить примеры, в которых их вы делят внутри пакетов. Например, используйте файлы с точкой. Но я предположил, что возможно. Возможно, вы используете POSIX Shell Script?\n\nНапример:\n\n```bash\nif [ \"$1\" = \"val\" ]; then\n    echo \"Linux system\"\n    exit 0\nfi\n\nif [ \"$1\" = \"on\" ]; then\n    echo \"Running system"
+        },
+        "end": {
+          "token_offset": 880,
+          "tokens": 120,
+          "text": "\nsort file.txt | grep 'search_string'\n```\n\nИли, если использовать `awk`:\n\n```bash\nawk '{print $1}' file.txt | grep 'search_string'\n```\n\nЕсли использовать `sed`:\n\n```bash\nsed 's/old_string/new_string/g' file.txt\n```\n\nТеперь, если вы замените `old_string` на `new_string`, то:\n\n```bash\nsed 's/old_string/new_string/g' file.txt\n```\n\nИли, если использовать `sort`:\n\n```bash\nsort file.txt | sed"
+        }
+      }
+    },
+    {
+      "condition": "fly",
+      "reset_interval": null,
+      "generated_tokens": 1000,
+      "stop_reason": "total_tokens",
+      "seconds": 41.241564260000814,
+      "tokens_per_second": 24.247382899825542,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 2.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": 0.18434490179644752,
+      "state_rms_last_1000_mean": 0.18434490179644752,
+      "rms_autocorrelation_peak": {
+        "lag": 2,
+        "value": 0.8491842679840289
+      },
+      "distinct_1": 0.35,
+      "distinct_2": 0.5875875875875876,
+      "exact_loop_onset_chunk": null,
+      "checkpoint_kl_retained_vs_reset": {
+        "128": 6.364529573479134e-05,
+        "256": 0.0001352194526720935,
+        "512": 0.0005293863938751713
+      },
+      "checkpoint_argmax_disagreement": {
+        "128": 0.0,
+        "256": 0.0,
+        "512": 0.0
+      },
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 1,
+        "tokens": 488,
+        "recovered": 0,
+        "list": [
+          {
+            "start": 512,
+            "end": 1000,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": " ужилась в коврик и мы вместе с детьми отправились в путешествие. На обратном пути наша девочка мечтала о встрече с отце, а сделать ее мечтах с детьми обоюдной.\nПосле ухода в путешествие, одной из девочек напросила другую мечтать, которую они хотели сделать вместе, выдержано в одно слово и понятное и естественно языковое слово.\nВ помощь вашей следующей пропус"
+        },
+        "middle": {
+          "token_offset": 440,
+          "tokens": 120,
+          "text": " first name and last name, so that I can fill in my dataset correctly.\n\nHello, and thanks for providing the information. Please provide the name and surname. I will do my best to understand your request.\n\nFirst name: Artemis, Last name: Havel\n\nThank you! Now, based on this dataset, I will calculate the population.\n\nLet me do that step-by-step.\nTo calculate the population, I have to add up the people in each city.\n\nLet's start with each city's data:\n\n1. Osvaldo Mickeys, 10 years old\n2. Valencia"
+        },
+        "end": {
+          "token_offset": 880,
+          "tokens": 120,
+          "text": "Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n"
+        }
+      }
+    }
+  ],
+  "figures": [
+    "reservoir_rms.png",
+    "checkpoint_kl.png",
+    "state_similarity.png",
+    "diversity.png"
+  ],
+  "first_divergence_from_clean": {
+    "fly": 0
+  }
+}

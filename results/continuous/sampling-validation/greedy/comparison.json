@@ -1,0 +1,59 @@
+{
+  "conditions": [
+    {
+      "condition": "clean",
+      "reset_interval": null,
+      "generated_tokens": 1000,
+      "stop_reason": "total_tokens",
+      "seconds": 22.711425287001475,
+      "tokens_per_second": 44.030702052518656,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 0.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": null,
+      "state_rms_last_1000_mean": null,
+      "rms_autocorrelation_peak": null,
+      "distinct_1": 0.013,
+      "distinct_2": 0.016016016016016016,
+      "exact_loop_onset_chunk": 0,
+      "checkpoint_kl_retained_vs_reset": {},
+      "checkpoint_argmax_disagreement": {},
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 1,
+        "tokens": 1000,
+        "recovered": 0,
+        "list": [
+          {
+            "start": 0,
+            "end": 1000,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": ", в саду сидели птицы, и вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вд"
+        },
+        "middle": {
+          "token_offset": 440,
+          "tokens": 120,
+          "text": "друг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг в"
+        },
+        "end": {
+          "token_offset": 880,
+          "tokens": 120,
+          "text": " вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг"
+        }
+      }
+    }
+  ],
+  "figures": [
+    "diversity.png"
+  ],
+  "first_divergence_from_clean": {}
+}

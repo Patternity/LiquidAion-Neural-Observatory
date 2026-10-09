@@ -107,6 +107,7 @@ class EngineWorker(QObject):
     finished = Signal(str, object)
     error = Signal(str)
     stopped = Signal()
+    continuous_progress = Signal(dict)
 
     def __init__(self, config, model_path, graph_dir, device="cpu", replay_path=None, debug_log=None):
         super().__init__()
@@ -242,6 +243,8 @@ class EngineWorker(QObject):
                 self.replay = None
             elif command == "scientific":
                 result = self.engine.scientific_compare(payload["prompt"], comparison=payload["comparison"], max_tokens=payload["tokens"], cancel_event=self.cancel_event, on_telemetry=self.publish)
+            elif command == "continuous":
+                result = self._continuous(payload)
             elif command.startswith("demo_"):
                 if command == "demo_persistence":
                     result = self.engine.demo_persistence(prompt_a=payload, cancel_event=self.cancel_event, on_telemetry=self.publish)
@@ -257,6 +260,56 @@ class EngineWorker(QObject):
             self.finished.emit(command, {"error": str(exc)})
         finally:
             self.busy = False
+
+    def _continuous(self, payload):
+        """Run one sliding-window condition; stream throttled progress and reservoir state."""
+        from .continuous import ContinuousConfig, ContinuousRun
+        import torch
+        settings = dict(payload)
+        output = Path(settings.pop("output"))
+        config = ContinuousConfig(**settings)
+        buffer = {"text": "", "rms": [], "resets": [], "last": 0.0}
+
+        def emit(row, run):
+            update = {"step": row["step"], "total": config.total_tokens, "window_len": row["window_len"],
+                      "tokens_per_second": (row["step"] + 1) / max(row.get("elapsed", 0.0), 1e-9),
+                      "state_rms": row.get("state_rms"), "text": buffer["text"], "rms": buffer["rms"],
+                      "resets": buffer["resets"]}
+            self.continuous_progress.emit(update)
+            if run.reservoir is not None:
+                snapshot = {"state": run.reservoir.state.tolist(), "state_rms": row.get("state_rms", 0.0),
+                            "delta_relative_rms": row.get("delta_relative_rms", 0.0),
+                            "steering_vector_norm": row.get("steering_vector_norm", 0.0),
+                            "input_norm": row.get("input_norm", 0.0), "simulation_time": run.reservoir.time,
+                            "branch": "continuous", "status": "continuous", "device": str(self.engine.llm.device)}
+                if self.engine.llm.device.type == "cuda":
+                    free, total = torch.cuda.mem_get_info(self.engine.llm.device)
+                    snapshot.update(gpu_allocated_bytes=torch.cuda.memory_allocated(self.engine.llm.device),
+                                    gpu_reserved_bytes=torch.cuda.memory_reserved(self.engine.llm.device),
+                                    gpu_free_bytes=free, gpu_total_bytes=total)
+                self.telemetry.emit(snapshot)
+            buffer.update(text="", rms=[], resets=[], last=time.monotonic())
+
+        def progress(row, run):
+            buffer["text"] += row.get("fragment", "")
+            if "state_rms" in row:
+                buffer["rms"].append((row["step"], row["state_rms"]))
+            if row.get("reset"):
+                buffer["resets"].append(row["step"])
+            buffer["row"] = row
+            # Signals are throttled; the full telemetry is written to disk by the run itself.
+            if time.monotonic() - buffer["last"] >= 0.1:
+                emit(row, run)
+
+        with self.engine._lock:
+            run = ContinuousRun(self.engine, config, output)
+            summary = run.run(self.cancel_event, progress)
+        if "row" in buffer:
+            # Bytes of an incomplete character are only decoded when the run ends.
+            buffer["text"] += run.tail_text
+            emit(buffer["row"], run)
+        summary["output"] = str(output)
+        return summary
 
     @Slot()
     def shutdown(self):
@@ -523,6 +576,10 @@ class ObservatoryWindow(QMainWindow):
             demo_row.addWidget(button)
             self.demo_buttons.append(button)
         exp_layout.addLayout(demo_row)
+        self.continuous_button = QPushButton("Continuous generation · sliding window…")
+        self.continuous_button.clicked.connect(self.open_continuous)
+        exp_layout.addWidget(self.continuous_button)
+        self.continuous_dialog = None
         self.science_details = QCheckBox("Review full result and traces")
         self.science_details.toggled.connect(self.render_science_result)
         exp_layout.addWidget(self.science_details)
@@ -604,7 +661,7 @@ class ObservatoryWindow(QMainWindow):
     def _set_busy(self, busy):
         enabled = not busy and not self.is_replay
         for widget in (self.send, self.scientific, self.steering, self.feedback, self.strength, self.feedback_strength,
-                       self.max_tokens, self.context_tokens, *self.demo_buttons):
+                       self.max_tokens, self.context_tokens, self.continuous_button, *self.demo_buttons):
             widget.setEnabled(enabled)
         self.cancel.setEnabled(busy and not self.is_replay)
 
@@ -774,9 +831,29 @@ class ObservatoryWindow(QMainWindow):
         if not self.visualization_paused and self.latest:
             self.on_telemetry(self.latest)
 
+    def open_continuous(self):
+        if self.continuous_dialog is None:
+            from .continuous_gui import ContinuousDialog
+            self.continuous_dialog = ContinuousDialog(self)
+            self.continuous_dialog.start_requested.connect(self.start_continuous)
+            self.continuous_dialog.stop_requested.connect(self.cancel_generation)
+            if self.worker is not None:
+                self.worker.continuous_progress.connect(self.continuous_dialog.on_progress)
+        self.continuous_dialog.show()
+        self.continuous_dialog.raise_()
+
+    def start_continuous(self, payload):
+        self._set_busy(True)
+        self.active_operation = "continuous"
+        self.status.setText(f"CONTINUOUS · {payload['condition']} · window {payload['window']} · {payload['total_tokens']} tokens")
+        self.command.emit("continuous", payload)
+
     @Slot(str, object)
     def on_finished(self, command, result):
-        if command in {"generate", "scientific", "demo_clean_vs_fly", "demo_random_topology", "demo_persistence"}:
+        if command == "continuous" and self.continuous_dialog is not None:
+            self.continuous_dialog.on_finished(result)
+        if command in {"generate", "scientific", "demo_clean_vs_fly", "demo_random_topology", "demo_persistence",
+                       "continuous"}:
             self.active_operation = None
         if isinstance(result, dict) and result.get("error"):
             self.on_error(f"{command}: {result['error']}")
@@ -793,7 +870,8 @@ class ObservatoryWindow(QMainWindow):
         if command == "scientific" or command.startswith("demo_"):
             self.science_result = result
             self.render_science_result()
-        if command in {"generate", "scientific", "demo_clean_vs_fly", "demo_random_topology", "demo_persistence"}:
+        if command in {"generate", "scientific", "demo_clean_vs_fly", "demo_random_topology", "demo_persistence",
+                       "continuous"}:
             self._set_busy(False)
             self.status.setText("LIVE · idle dynamics active" if not self.is_replay else "OFFLINE REPLAY")
         if command == "save_recording":

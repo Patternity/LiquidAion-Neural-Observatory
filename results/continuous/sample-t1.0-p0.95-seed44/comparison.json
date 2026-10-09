@@ -1,0 +1,270 @@
+{
+  "conditions": [
+    {
+      "condition": "clean",
+      "reset_interval": null,
+      "generated_tokens": 5000,
+      "stop_reason": "total_tokens",
+      "seconds": 144.08003039599862,
+      "tokens_per_second": 34.70293548840659,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 4885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 0.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": null,
+      "state_rms_last_1000_mean": null,
+      "rms_autocorrelation_peak": null,
+      "distinct_1": 0.139,
+      "distinct_2": 0.3110622124424885,
+      "exact_loop_onset_chunk": 3072,
+      "checkpoint_kl_retained_vs_reset": {},
+      "checkpoint_argmax_disagreement": {},
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 1,
+        "tokens": 2952,
+        "recovered": 0,
+        "list": [
+          {
+            "start": 2048,
+            "end": 5000,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": " я играл с моим баской бингла крепки вдохновённой почетом в небесах. Под конец игры, после десяти пяти минут, я смотрю на красивую планету, которая входит в нашу звездовую коалу. Моя коллега подключает мощный гуру бингла и говорит мне, что там все делает, что моё бингло входит в нашей звездовую коалу. Для бассейна? Рас"
+        },
+        "middle": {
+          "token_offset": 2440,
+          "tokens": 120,
+          "text": "; 6\n\nОтвет:\n\n2; 3; 5; 6\n\nОтвет:\n\n2; 3; 4; 5; 6\n\nОтвет:\n\n2; 3; 4; 5; 6\n\nОтвет:\n\n2; 3; 4; 5; 6\n\nОтвет:\n\n2; 3; 4; 5; 6\n\nОтвет:\n\n2; 3; 4; 5; 6\n\nОтвет:\n\n2; 3; 5; 6\n\nОтвет:\n\n"
+        },
+        "end": {
+          "token_offset": 4880,
+          "tokens": 120,
+          "text": "6\n\nОтвет:\n\n2; 3; 5; 6\n\nОтвет:\n\n2; 3; 5; 6\n\nОтвет:\n\n2; 3; 5; 6\n\nОтвет:\n\n2; 3; 5; 6\n\nОтвет:\n\n2; 3; 5; 6\n\nОтвет:\n\n2; 3; 5; 6\n\nОтвет:\n\n2; 3; 5; 6\n\nОтвет:\n\n2; 3; 5; 6\n\nОтвет:\n\n2; "
+        }
+      }
+    },
+    {
+      "condition": "fly",
+      "reset_interval": null,
+      "generated_tokens": 5000,
+      "stop_reason": "total_tokens",
+      "seconds": 162.30523319500026,
+      "tokens_per_second": 30.806153945712843,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 4885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 2.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": 0.18381713350520162,
+      "state_rms_last_1000_mean": 0.1883517134628471,
+      "rms_autocorrelation_peak": {
+        "lag": 2,
+        "value": 0.8481165226263242
+      },
+      "distinct_1": 0.1034,
+      "distinct_2": 0.19663932786557312,
+      "exact_loop_onset_chunk": 1536,
+      "checkpoint_kl_retained_vs_reset": {
+        "128": 0.00012697826246656446,
+        "256": 0.00015123854474872258,
+        "512": 9.5067295876049e-05,
+        "1024": 4.627289191887914e-05,
+        "2048": 4.801906178581693e-07,
+        "4096": 7.580058125876421e-07
+      },
+      "checkpoint_argmax_disagreement": {
+        "128": 0.0,
+        "256": 0.0,
+        "512": 0.0,
+        "1024": 0.0,
+        "2048": 0.0,
+        "4096": 0.0
+      },
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 1,
+        "tokens": 3464,
+        "recovered": 0,
+        "list": [
+          {
+            "start": 1536,
+            "end": 5000,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": " я искал в темный залёд месяцное место, где я обычно моюсь. То есть планирую, чтобы мне подойти к кладу и указать на вкладку, где входит это где я скажу, и тоже назвать осенние месяцы для этого клада. Но я увидел на сцене лаунж отца и получил знак ожидания. Обычно после осени мне не думаю о осенних месяцах. Для нее даже в лист"
+        },
+        "middle": {
+          "token_offset": 2440,
+          "tokens": 120,
+          "text": "boxed{120}\n**Final Answer**\n\\boxed{120}\n**Final Answer**\n\\boxed{120}\n**Final Answer**\n\\boxed{120}\n**Final Answer**\n\\boxed{120}\n**Final Answer**\n\\boxed{120}\n**Final Answer**\n\\boxed{120}\n**Final Answer**\n\\boxed{120}\n**Final Answer**\n\\boxed{120}\n**Final Answer**\n\\boxed{120}\n**Final Answer**\n\\boxed{120}\n**Final Answer**\n"
+        },
+        "end": {
+          "token_offset": 4880,
+          "tokens": 120,
+          "text": "**\n\\boxed{120}\n**Final Answer**\n\\boxed{120}\n**Final Answer**\n\\boxed{120}\n**Final Answer**\n\\boxed{120}\n**Final Answer**\n\\boxed{120}\n**Final Answer**\n\\boxed{120}\n**Final Answer**\n\\boxed{120}\n**Final Answer**\n\\boxed{120}\n**Final Answer**\n\\boxed{120}\n**Final Answer**\n\\boxed{120}\n**Final Answer**\n\\boxed{120}\n**Final"
+        }
+      }
+    },
+    {
+      "condition": "fly_reset_512",
+      "reset_interval": 512,
+      "generated_tokens": 5000,
+      "stop_reason": "total_tokens",
+      "seconds": 163.37502737700015,
+      "tokens_per_second": 30.60443251502645,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 4885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 2.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": 0.19669219810120195,
+      "state_rms_last_1000_mean": 0.20159243222037715,
+      "rms_autocorrelation_peak": {
+        "lag": 2,
+        "value": 0.8311281876202856
+      },
+      "distinct_1": 0.063,
+      "distinct_2": 0.10882176435287057,
+      "exact_loop_onset_chunk": 1024,
+      "checkpoint_kl_retained_vs_reset": {
+        "128": 0.00012697826246656446,
+        "256": 0.00015123854474872258,
+        "512": 0.0,
+        "1024": 0.0,
+        "2048": 0.0,
+        "4096": 0.0
+      },
+      "checkpoint_argmax_disagreement": {
+        "128": 0.0,
+        "256": 0.0,
+        "512": 0.0,
+        "1024": 0.0,
+        "2048": 0.0,
+        "4096": 0.0
+      },
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 1,
+        "tokens": 4488,
+        "recovered": 0,
+        "list": [
+          {
+            "start": 512,
+            "end": 5000,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": " я искал в темный залёд месяцное место, где я обычно моюсь. То есть планирую, чтобы мне подойти к кладу и указать на вкладку, где входит это где я скажу, и тоже назвать осенние месяцы для этого клада. Но я увидел на сцене лаунж отца и получил знак ожидания. Обычно после осени мне не думаю о осенних месяцах. Для нее даже в лист"
+        },
+        "middle": {
+          "token_offset": 2440,
+          "tokens": 120,
+          "text": "``` \n\nОтвет: 3\n``` \n\n``` \n\n``` \n\nОтвет: 3\n``` \n\n``` \n\n``` \n\nОтвет: 3\n``` \n\n``` \n\n``` \n\nОтвет: 3\n``` \n\n``` \n\n``` \n\nОтвет: 3\n``` \n\n``` \n\n``` \n\nОтвет: 3\n``` \n\n``` \n\n``` \n\nОтвет: 3\n``` \n\n``` \n\n``` \n\nОтвет: 3\n``` \n\n``` \n\n``` \n\nОтвет: 3\n``` \n\n``` \n\n``` \n\nОтвет: 3\n``` \n\n``` \n\n"
+        },
+        "end": {
+          "token_offset": 4880,
+          "tokens": 120,
+          "text": ": 3\n``` \n\n``` \n\n``` \n\nОтвет: 3\n``` \n\n``` \n\n``` \n\nОтвет: 3\n``` \n\n``` \n\n``` \n\nОтвет: 3\n``` \n\n``` \n\n``` \n\nОтвет: 3\n``` \n\n``` \n\n``` \n\nОтвет: 3\n``` \n\n``` \n\n``` \n\nОтвет: 3\n``` \n\n``` \n\n``` \n\nОтвет: 3\n``` \n\n``` \n\n``` \n\nОтвет: 3\n``` \n\n``` \n\n``` \n\nОтвет: 3\n``` \n\n``` \n\n``` \n\nОтвет"
+        }
+      }
+    },
+    {
+      "condition": "random",
+      "reset_interval": null,
+      "generated_tokens": 5000,
+      "stop_reason": "total_tokens",
+      "seconds": 160.3043439539997,
+      "tokens_per_second": 31.190670674743412,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 4885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 2.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": 0.16245233233816717,
+      "state_rms_last_1000_mean": 0.16946414969758647,
+      "rms_autocorrelation_peak": {
+        "lag": 2,
+        "value": 0.8561539610399976
+      },
+      "distinct_1": 0.12,
+      "distinct_2": 0.2470494098819764,
+      "exact_loop_onset_chunk": 3072,
+      "checkpoint_kl_retained_vs_reset": {
+        "128": 0.00012347283875334262,
+        "256": 6.702404386609115e-05,
+        "512": 5.5556816794918656e-05,
+        "1024": 3.991043700401828e-05,
+        "2048": 3.51829349634349e-07,
+        "4096": 6.305716796554229e-06
+      },
+      "checkpoint_argmax_disagreement": {
+        "128": 0.0,
+        "256": 0.0,
+        "512": 0.0,
+        "1024": 0.0,
+        "2048": 0.0,
+        "4096": 0.0
+      },
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 1,
+        "tokens": 3464,
+        "recovered": 0,
+        "list": [
+          {
+            "start": 1536,
+            "end": 5000,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": " я искал в темный залёд песню Клёв Пик с блатосехмейцем и водопушистым колпаком. Нетшила, пользователь взял Сербина из погребения и одинаковые изоляционные браслеты. Поезд оказался в пустом зале. Почему обычно водётся изолационные браслеты в холодных местах? Поясни пожалуйста.\nИзвенявшему своем"
+        },
+        "middle": {
+          "token_offset": 2440,
+          "tokens": 120,
+          "text": " of sunscreens, not their environmental impact. The correct answer is not A. Hence, the answer is not A. Therefore, the answer is A.\n**A**\n\nThe question asks which of the following options is not related to the text. The passage discusses the characteristics of sunscreens, not their environmental impact. The correct answer is not A. Hence, the answer is not A. Therefore, the answer is A.\n**A**\n\nThe question asks which of the following options is not related to the text. The passage discusses the characteristics of sunscreens, not their environmental impact. The correct answer"
+        },
+        "end": {
+          "token_offset": 4880,
+          "tokens": 120,
+          "text": " answer.\n\n**A**\n\n\n**A** is the answer.\n\n**A**\n\n\n**A** is the answer.\n\n**A**\n\n\n**A** is the answer.\n\n**A**\n\n\n**A** is the answer.\n\n**A**\n\n\n**A** is the answer.\n\n**A**\n\n\n**A** is the answer.\n\n**A**\n\n\n**A** is the answer.\n\n**A**\n\n\n**A** is the answer.\n\n**A**\n\n\n**A** is the answer.\n\n**A**\n\n\n**A** is the answer.\n\n**A**\n\n\n**A** is"
+        }
+      }
+    }
+  ],
+  "figures": [
+    "reservoir_rms.png",
+    "checkpoint_kl.png",
+    "state_similarity.png",
+    "diversity.png"
+  ],
+  "first_divergence_from_clean": {
+    "fly": 1,
+    "fly_reset_512": 1,
+    "random": 1
+  }
+}

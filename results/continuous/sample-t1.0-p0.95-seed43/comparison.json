@@ -1,0 +1,285 @@
+{
+  "conditions": [
+    {
+      "condition": "clean",
+      "reset_interval": null,
+      "generated_tokens": 5000,
+      "stop_reason": "total_tokens",
+      "seconds": 155.04253780099862,
+      "tokens_per_second": 32.249214124820625,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 4885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 0.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": null,
+      "state_rms_last_1000_mean": null,
+      "rms_autocorrelation_peak": null,
+      "distinct_1": 0.1684,
+      "distinct_2": 0.3764752950590118,
+      "exact_loop_onset_chunk": 4608,
+      "checkpoint_kl_retained_vs_reset": {},
+      "checkpoint_argmax_disagreement": {},
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 3,
+        "tokens": 1928,
+        "recovered": 2,
+        "list": [
+          {
+            "start": 2048,
+            "end": 2560,
+            "recovered": true
+          },
+          {
+            "start": 3072,
+            "end": 3584,
+            "recovered": true
+          },
+          {
+            "start": 4096,
+            "end": 5000,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": " на прессе с posted посёлке птиц «Университета Энса в России» а система на некотором сайте содержала для вас заголовок с полностью содержанием ИД. Пользователь намеренно скрыл это и возвраты пока нет? Чтобы совместить эти два события с возможными выборами с E вопроса (7-в) напишите кнопку с выпадением ответов A, B, C, D и заполните их. Возможно, сделать кнопку с длиной"
+        },
+        "middle": {
+          "token_offset": 2440,
+          "tokens": 120,
+          "text": "}\n**Final Answer**\n\\boxed{19}\n**Final Answer**\n\\boxed{19}\n\nThe problem is to find the value of a certain expression, and after solving it, the final answer is 19. However, the answer choices are not listed. Therefore, the final answer is \\boxed{19}.\nThe problem is to find the value of a certain expression, and after solving it, the final answer is 19. However, the answer choices are not listed. Therefore, the final answer is \\boxed{19}.\nThe problem is to find the value"
+        },
+        "end": {
+          "token_offset": 4880,
+          "tokens": 120,
+          "text": ")) // 2)\n``` \n``` \n\n**Final Answer**\n\\boxed{55}\n```python\nn = 10\nprint((n * (n + 1)) // 2)\n``` \n``` \n\n**Final Answer**\n\\boxed{55}\n```python\nn = 10\nprint((n * (n + 1)) // 2)\n``` \n``` \n\n**Final Answer**\n\\boxed{55}\n```python\nn = 10\nprint((n * (n + 1)) // 2)\n``` \n``` \n\n"
+        }
+      }
+    },
+    {
+      "condition": "fly",
+      "reset_interval": null,
+      "generated_tokens": 5000,
+      "stop_reason": "total_tokens",
+      "seconds": 173.8815370859993,
+      "tokens_per_second": 28.755209344204683,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 4885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 2.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": 0.1888224702022503,
+      "state_rms_last_1000_mean": 0.18994207761207813,
+      "rms_autocorrelation_peak": {
+        "lag": 2,
+        "value": 0.7447303508150983
+      },
+      "distinct_1": 0.07,
+      "distinct_2": 0.11742348469693939,
+      "exact_loop_onset_chunk": 1024,
+      "checkpoint_kl_retained_vs_reset": {
+        "128": 6.364529573479134e-05,
+        "256": 0.0001352194526720935,
+        "512": 0.0005293863938751713,
+        "1024": 1.9733190640449922e-07,
+        "2048": 7.48330937141517e-07,
+        "4096": 5.947867938960272e-07
+      },
+      "checkpoint_argmax_disagreement": {
+        "128": 0.0,
+        "256": 0.0,
+        "512": 0.0,
+        "1024": 0.0,
+        "2048": 0.0,
+        "4096": 0.0
+      },
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 1,
+        "tokens": 4488,
+        "recovered": 0,
+        "list": [
+          {
+            "start": 512,
+            "end": 5000,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": " ужилась в коврик и мы вместе с детьми отправились в путешествие. На обратном пути наша девочка мечтала о встрече с отце, а сделать ее мечтах с детьми обоюдной.\nПосле ухода в путешествие, одной из девочек напросила другую мечтать, которую они хотели сделать вместе, выдержано в одно слово и понятное и естественно языковое слово.\nВ помощь вашей следующей пропус"
+        },
+        "middle": {
+          "token_offset": 2440,
+          "tokens": 120,
+          "text": "\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{"
+        },
+        "end": {
+          "token_offset": 4880,
+          "tokens": 120,
+          "text": "boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8}\n**Final Answer**\n\\boxed{8"
+        }
+      }
+    },
+    {
+      "condition": "fly_reset_512",
+      "reset_interval": 512,
+      "generated_tokens": 5000,
+      "stop_reason": "total_tokens",
+      "seconds": 174.21715980699992,
+      "tokens_per_second": 28.699813528926004,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 4885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 2.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": 0.18901509485380133,
+      "state_rms_last_1000_mean": 0.19030784243957424,
+      "rms_autocorrelation_peak": {
+        "lag": 2,
+        "value": 0.679183839339062
+      },
+      "distinct_1": 0.0694,
+      "distinct_2": 0.11882376475295059,
+      "exact_loop_onset_chunk": 1024,
+      "checkpoint_kl_retained_vs_reset": {
+        "128": 6.364529573479134e-05,
+        "256": 0.0001352194526720935,
+        "512": 0.0,
+        "1024": 0.0,
+        "2048": 0.0,
+        "4096": 0.0
+      },
+      "checkpoint_argmax_disagreement": {
+        "128": 0.0,
+        "256": 0.0,
+        "512": 0.0,
+        "1024": 0.0,
+        "2048": 0.0,
+        "4096": 0.0
+      },
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 1,
+        "tokens": 4488,
+        "recovered": 0,
+        "list": [
+          {
+            "start": 512,
+            "end": 5000,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": " ужилась в коврик и мы вместе с детьми отправились в путешествие. На обратном пути наша девочка мечтала о встрече с отце, а сделать ее мечтах с детьми обоюдной.\nПосле ухода в путешествие, одной из девочек напросила другую мечтать, которую они хотели сделать вместе, выдержано в одно слово и понятное и естественно языковое слово.\nВ помощь вашей следующей пропус"
+        },
+        "middle": {
+          "token_offset": 2440,
+          "tokens": 120,
+          "text": "**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer"
+        },
+        "end": {
+          "token_offset": 4880,
+          "tokens": 120,
+          "text": "Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n\\boxed{2}\n**Final Answer**\n"
+        }
+      }
+    },
+    {
+      "condition": "random",
+      "reset_interval": null,
+      "generated_tokens": 5000,
+      "stop_reason": "total_tokens",
+      "seconds": 178.46752481400108,
+      "tokens_per_second": 28.016301594427343,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 4885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 2.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": 0.15950128097680116,
+      "state_rms_last_1000_mean": 0.1643312737958131,
+      "rms_autocorrelation_peak": {
+        "lag": 2,
+        "value": 0.8088190500022819
+      },
+      "distinct_1": 0.0996,
+      "distinct_2": 0.21184236847369473,
+      "exact_loop_onset_chunk": 3072,
+      "checkpoint_kl_retained_vs_reset": {
+        "128": 6.256058358160247e-05,
+        "256": 8.402139973166875e-05,
+        "512": 4.311579990368266e-05,
+        "1024": 5.623878767375152e-05,
+        "2048": 9.456469020815335e-06,
+        "4096": 6.071117567674455e-07
+      },
+      "checkpoint_argmax_disagreement": {
+        "128": 0.0,
+        "256": 0.0,
+        "512": 0.0625,
+        "1024": 0.0,
+        "2048": 0.0,
+        "4096": 0.0
+      },
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 2,
+        "tokens": 2440,
+        "recovered": 1,
+        "list": [
+          {
+            "start": 1024,
+            "end": 1536,
+            "recovered": true
+          },
+          {
+            "start": 3072,
+            "end": 5000,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": " ужилась в коврик и заказала и за каждую капельку воды сандалийного цвета вставить на доношение текстеса в РФ. Нужно придумать ответ к стимулу на коврике (моделю в виртуальных полноценных средах и событиях, например, \"сон птиц\", \"сказочный птиц\", \"сон учеников\", \"студии в объёме\", \"ежедневные опыты\", \"сезон"
+        },
+        "middle": {
+          "token_offset": 2440,
+          "tokens": 120,
+          "text": "(A ∩ T), first answer is 0.22, second is 0.30.\n\nFirst, I need to find P(A ∩ T) given that P(A) = 0.35, P(T) = 0.05, and P(A|N) = 0.20. The options are 0.22 and 0.30.\n\nWait, there's a problem here. The options given don't match the calculated value. Maybe the options are different? Let me check again. The original question says:\n\n2."
+        },
+        "end": {
+          "token_offset": 4880,
+          "tokens": 120,
+          "text": " Answer**\n\\boxed{0.07}\n**Final Answer**\n\\boxed{0.07}\n**Final Answer**\n\\boxed{0.07}\n**Final Answer**\n\\boxed{0.07}\n**Final Answer**\n\\boxed{0.07}\n**Final Answer**\n\\boxed{0.07}\n**Final Answer**\n\\boxed{0.07}\n**Final Answer**\n\\boxed{0.07}\n**Final Answer**\n\\boxed{0.07}\n**Final Answer**\n\\boxed{0.07}\n**Final"
+        }
+      }
+    }
+  ],
+  "figures": [
+    "reservoir_rms.png",
+    "checkpoint_kl.png",
+    "state_similarity.png",
+    "diversity.png"
+  ],
+  "first_divergence_from_clean": {
+    "fly": 0,
+    "fly_reset_512": 0,
+    "random": 0
+  }
+}

@@ -1,0 +1,270 @@
+{
+  "conditions": [
+    {
+      "condition": "clean",
+      "reset_interval": null,
+      "generated_tokens": 5000,
+      "stop_reason": "total_tokens",
+      "seconds": 148.25048317899927,
+      "tokens_per_second": 33.72670289352747,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 4885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 0.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": null,
+      "state_rms_last_1000_mean": null,
+      "rms_autocorrelation_peak": null,
+      "distinct_1": 0.0404,
+      "distinct_2": 0.08321664332866573,
+      "exact_loop_onset_chunk": 4096,
+      "checkpoint_kl_retained_vs_reset": {},
+      "checkpoint_argmax_disagreement": {},
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 1,
+        "tokens": 4488,
+        "recovered": 0,
+        "list": [
+          {
+            "start": 512,
+            "end": 5000,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": " мне стало голодно иначе решил внести это внесёт булку. Обычно это овощи ия вкуса и это лёгкий блюда, но решил использовать булку из тафитина и да я использовал везу из пропорций. Сколько нужно взять пылесобожителя?\n\nQuestion: В зимний период ведется годовой контроль овощного роста в числах. Выводы скорее всего, читают в числа"
+        },
+        "middle": {
+          "token_offset": 2440,
+          "tokens": 120,
+          "text": "-546-547-548-549-550-551-552-553-554-555-556-557-558-559-560-561-562-563-564-565-566-567-568-569-570-571-572-573-574-575"
+        },
+        "end": {
+          "token_offset": 4880,
+          "tokens": 120,
+          "text": "-899-899-899-899-899-899-899-899-899-899-899-899-899-899-899-899-899-899-899-899-899-899-899-899-899-899-899-899-899-899"
+        }
+      }
+    },
+    {
+      "condition": "fly",
+      "reset_interval": null,
+      "generated_tokens": 5000,
+      "stop_reason": "total_tokens",
+      "seconds": 172.63781025199933,
+      "tokens_per_second": 28.962369209279835,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 4885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 2.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": 0.18034072347194757,
+      "state_rms_last_1000_mean": 0.18270374760397107,
+      "rms_autocorrelation_peak": {
+        "lag": 5,
+        "value": 0.6558154853835061
+      },
+      "distinct_1": 0.1166,
+      "distinct_2": 0.23724744948989798,
+      "exact_loop_onset_chunk": 2048,
+      "checkpoint_kl_retained_vs_reset": {
+        "128": 7.431713339417608e-05,
+        "256": 0.0002323426132559411,
+        "512": 0.00048477406093472297,
+        "1024": 2.0966475346254653e-05,
+        "2048": 2.487120827463047e-07,
+        "4096": 2.25872464647142e-07
+      },
+      "checkpoint_argmax_disagreement": {
+        "128": 0.0,
+        "256": 0.0625,
+        "512": 0.0,
+        "1024": 0.0,
+        "2048": 0.0,
+        "4096": 0.0
+      },
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 1,
+        "tokens": 3464,
+        "recovered": 0,
+        "list": [
+          {
+            "start": 1536,
+            "end": 5000,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": " мне стало лёгкое тепло от солнца и я начал носить в себя купюлярный воротник, потом в другой день пришла бешеная ларигова гравюра на миля, быстро я ко мне на её ошибка. Не подумав об этом, я стал за парту, воротник ещё накидал на лёгкое шерстное седово. Днём после лыжаев моя седово шело с грибами,"
+        },
+        "middle": {
+          "token_offset": 2440,
+          "tokens": 120,
+          "text": "ение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключ"
+        },
+        "end": {
+          "token_offset": 4880,
+          "tokens": 120,
+          "text": "ение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключение\n\n## заключ"
+        }
+      }
+    },
+    {
+      "condition": "fly_reset_512",
+      "reset_interval": 512,
+      "generated_tokens": 5000,
+      "stop_reason": "total_tokens",
+      "seconds": 174.48352932600028,
+      "tokens_per_second": 28.65599990620396,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 4885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 2.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": 0.1861288639376631,
+      "state_rms_last_1000_mean": 0.193768608193153,
+      "rms_autocorrelation_peak": {
+        "lag": 2,
+        "value": 0.8152833076479802
+      },
+      "distinct_1": 0.134,
+      "distinct_2": 0.2570514102820564,
+      "exact_loop_onset_chunk": 2048,
+      "checkpoint_kl_retained_vs_reset": {
+        "128": 7.431713339417608e-05,
+        "256": 0.0002323426132559411,
+        "512": 0.0,
+        "1024": 0.0,
+        "2048": 0.0,
+        "4096": 0.0
+      },
+      "checkpoint_argmax_disagreement": {
+        "128": 0.0,
+        "256": 0.0625,
+        "512": 0.0,
+        "1024": 0.0,
+        "2048": 0.0,
+        "4096": 0.0
+      },
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 1,
+        "tokens": 3464,
+        "recovered": 0,
+        "list": [
+          {
+            "start": 1536,
+            "end": 5000,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": " мне стало лёгкое тепло от солнца и я начал носить в себя купюлярный воротник, потом в другой день пришла бешеная ларигова гравюра на миля, быстро я ко мне на её ошибка. Не подумав об этом, я стал за парту, воротник ещё накидал на лёгкое шерстное седово. Днём после лыжаев моя седово шело с грибами,"
+        },
+        "middle": {
+          "token_offset": 2440,
+          "tokens": 120,
+          "text": "Answer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\n"
+        },
+        "end": {
+          "token_offset": 4880,
+          "tokens": 120,
+          "text": "Answer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\nAnswer:\nA\n"
+        }
+      }
+    },
+    {
+      "condition": "random",
+      "reset_interval": null,
+      "generated_tokens": 5000,
+      "stop_reason": "total_tokens",
+      "seconds": 197.46446768600072,
+      "tokens_per_second": 25.321011210739844,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 4885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 2.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": 0.16037047983812336,
+      "state_rms_last_1000_mean": 0.1676349036018727,
+      "rms_autocorrelation_peak": {
+        "lag": 2,
+        "value": 0.8911983403521223
+      },
+      "distinct_1": 0.1368,
+      "distinct_2": 0.25925185037007403,
+      "exact_loop_onset_chunk": 2560,
+      "checkpoint_kl_retained_vs_reset": {
+        "128": 4.23405495848755e-05,
+        "256": 6.0915062528115574e-05,
+        "512": 8.921099938445396e-05,
+        "1024": 6.041908587213576e-05,
+        "2048": 5.604374076059613e-07,
+        "4096": 1.414784505159587e-07
+      },
+      "checkpoint_argmax_disagreement": {
+        "128": 0.0,
+        "256": 0.0,
+        "512": 0.0,
+        "1024": 0.0,
+        "2048": 0.0,
+        "4096": 0.0
+      },
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 1,
+        "tokens": 2952,
+        "recovered": 0,
+        "list": [
+          {
+            "start": 2048,
+            "end": 5000,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": " мне стало голодно и пришла возможность в путешествие по тропе Тайлау. Тропа Тайлау, которую изначально открыл сам муж, Кристиан написал ответ о том, что все добрый день и что эта тропа требует всего маленького умения — допустим, нацию из множества высоких традиций и даже при этом радищет просим посвятить народууу, укажите экстремальные условия, что пр"
+        },
+        "middle": {
+          "token_offset": 2440,
+          "tokens": 120,
+          "text": "boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C"
+        },
+        "end": {
+          "token_offset": 4880,
+          "tokens": 120,
+          "text": "{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n**Final Answer**\n\\boxed{C}\n"
+        }
+      }
+    }
+  ],
+  "figures": [
+    "reservoir_rms.png",
+    "checkpoint_kl.png",
+    "state_similarity.png",
+    "diversity.png"
+  ],
+  "first_divergence_from_clean": {
+    "fly": 2,
+    "fly_reset_512": 2,
+    "random": 6
+  }
+}

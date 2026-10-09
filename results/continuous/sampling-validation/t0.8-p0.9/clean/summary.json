@@ -1,0 +1,18 @@
+{
+  "condition": "clean",
+  "reset_interval": null,
+  "stop_reason": "total_tokens",
+  "generated_tokens": 1000,
+  "seconds": 33.612620361000154,
+  "tokens_per_second": 29.750730209664756,
+  "window": 128,
+  "max_window_seen": 128,
+  "window_shifts": 885,
+  "forward_calls": 1000,
+  "reservoir_advances": 0,
+  "resets": [],
+  "eos_suppressed": [],
+  "peak_gpu_allocated_bytes": 1241089024,
+  "probes": [],
+  "final_state_rms": null
+}

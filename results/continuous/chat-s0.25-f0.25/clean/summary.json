@@ -1,0 +1,79 @@
+{
+  "condition": "clean",
+  "reset_interval": null,
+  "stop_reason": "total_tokens",
+  "generated_tokens": 5000,
+  "seconds": 94.22548951299905,
+  "tokens_per_second": 53.06419765864115,
+  "window": 128,
+  "max_window_seen": 128,
+  "window_shifts": 4885,
+  "forward_calls": 5000,
+  "reservoir_advances": 0,
+  "resets": [],
+  "eos_suppressed": [
+    {
+      "step": 133,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 158,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 161,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 162,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 163,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 165,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 166,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 168,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 169,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 171,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 172,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 174,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 175,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 178,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 181,
+      "eos_token_id": 151645
+    }
+  ],
+  "peak_gpu_allocated_bytes": 1245608960,
+  "probes": [],
+  "final_state_rms": null
+}

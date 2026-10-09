@@ -1,0 +1,181 @@
+{
+  "condition": "fly",
+  "reset_interval": null,
+  "stop_reason": "total_tokens",
+  "generated_tokens": 5000,
+  "seconds": 172.63781025199933,
+  "tokens_per_second": 28.962369209279835,
+  "window": 128,
+  "max_window_seen": 128,
+  "window_shifts": 4885,
+  "forward_calls": 5000,
+  "reservoir_advances": 10000,
+  "resets": [],
+  "eos_suppressed": [],
+  "peak_gpu_allocated_bytes": 1241089024,
+  "probes": [
+    {
+      "step": 128,
+      "probe_tokens": 16,
+      "context_tokens": 128,
+      "seed_tokens_in_context": 0,
+      "retained_state_rms": 0.16526930855672206,
+      "retained_vs_reset": {
+        "mean_kl_baseline_to_condition": 7.431713339417608e-05,
+        "first_token_kl": 0.0002270290527491797,
+        "logit_rms_difference": 0.021032579243183136,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_retained": {
+        "mean_kl_baseline_to_condition": 0.0006477403436446071,
+        "first_token_kl": 0.0001718175898111976,
+        "logit_rms_difference": 0.046177420765161514,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_reset": {
+        "mean_kl_baseline_to_condition": 0.0005045966386567994,
+        "first_token_kl": 3.2504427756756705e-05,
+        "logit_rms_difference": 0.038153957575559616,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "retained_first_logits_equal_main": true,
+      "retained_first_logits_max_abs_diff": 0.0
+    },
+    {
+      "step": 256,
+      "probe_tokens": 16,
+      "context_tokens": 128,
+      "seed_tokens_in_context": 0,
+      "retained_state_rms": 0.16945014012353937,
+      "retained_vs_reset": {
+        "mean_kl_baseline_to_condition": 0.0002323426132559411,
+        "first_token_kl": 0.00025061254979255056,
+        "logit_rms_difference": 0.020649535581469536,
+        "argmax_disagreement_fraction": 0.0625
+      },
+      "clean_vs_retained": {
+        "mean_kl_baseline_to_condition": 0.0006932933454911852,
+        "first_token_kl": 0.00022225044905824502,
+        "logit_rms_difference": 0.0491238571703434,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_reset": {
+        "mean_kl_baseline_to_condition": 0.00040911319271760745,
+        "first_token_kl": 6.829695033675278e-05,
+        "logit_rms_difference": 0.04294509440660477,
+        "argmax_disagreement_fraction": 0.0625
+      },
+      "retained_first_logits_equal_main": true,
+      "retained_first_logits_max_abs_diff": 0.0
+    },
+    {
+      "step": 512,
+      "probe_tokens": 16,
+      "context_tokens": 128,
+      "seed_tokens_in_context": 0,
+      "retained_state_rms": 0.184154700207015,
+      "retained_vs_reset": {
+        "mean_kl_baseline_to_condition": 0.00048477406093472297,
+        "first_token_kl": 0.0016935539011746327,
+        "logit_rms_difference": 0.0321820043027401,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_retained": {
+        "mean_kl_baseline_to_condition": 0.0017971072299448852,
+        "first_token_kl": 0.0022239542799190404,
+        "logit_rms_difference": 0.06562722474336624,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_reset": {
+        "mean_kl_baseline_to_condition": 0.0010715365930881772,
+        "first_token_kl": 0.0002035902139449636,
+        "logit_rms_difference": 0.0521869994699955,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "retained_first_logits_equal_main": true,
+      "retained_first_logits_max_abs_diff": 0.0
+    },
+    {
+      "step": 1024,
+      "probe_tokens": 16,
+      "context_tokens": 128,
+      "seed_tokens_in_context": 0,
+      "retained_state_rms": 0.18696519983516666,
+      "retained_vs_reset": {
+        "mean_kl_baseline_to_condition": 2.0966475346254653e-05,
+        "first_token_kl": 4.93281079704295e-07,
+        "logit_rms_difference": 0.018754422664642334,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_retained": {
+        "mean_kl_baseline_to_condition": 0.00034320698609359283,
+        "first_token_kl": 5.028908284710824e-07,
+        "logit_rms_difference": 0.059056807309389114,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_reset": {
+        "mean_kl_baseline_to_condition": 0.0002476630130949833,
+        "first_token_kl": 1.1821814042429164e-08,
+        "logit_rms_difference": 0.051908623427152634,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "retained_first_logits_equal_main": true,
+      "retained_first_logits_max_abs_diff": 0.0
+    },
+    {
+      "step": 2048,
+      "probe_tokens": 16,
+      "context_tokens": 128,
+      "seed_tokens_in_context": 0,
+      "retained_state_rms": 0.18110082861401386,
+      "retained_vs_reset": {
+        "mean_kl_baseline_to_condition": 2.487120827463047e-07,
+        "first_token_kl": 2.053906949773262e-07,
+        "logit_rms_difference": 0.021270502358675003,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_retained": {
+        "mean_kl_baseline_to_condition": 9.464420379347566e-07,
+        "first_token_kl": 3.549499159098816e-07,
+        "logit_rms_difference": 0.046597979962825775,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_reset": {
+        "mean_kl_baseline_to_condition": 1.0146532880067004e-06,
+        "first_token_kl": 2.735471315102649e-08,
+        "logit_rms_difference": 0.03805689141154289,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "retained_first_logits_equal_main": true,
+      "retained_first_logits_max_abs_diff": 0.0
+    },
+    {
+      "step": 4096,
+      "probe_tokens": 16,
+      "context_tokens": 128,
+      "seed_tokens_in_context": 0,
+      "retained_state_rms": 0.181134405264261,
+      "retained_vs_reset": {
+        "mean_kl_baseline_to_condition": 2.25872464647142e-07,
+        "first_token_kl": 2.5057955048019814e-07,
+        "logit_rms_difference": 0.016343705356121063,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_retained": {
+        "mean_kl_baseline_to_condition": 9.517980939839853e-07,
+        "first_token_kl": 4.4064681269753994e-07,
+        "logit_rms_difference": 0.04654259979724884,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_reset": {
+        "mean_kl_baseline_to_condition": 7.597626436245479e-07,
+        "first_token_kl": 1.4724856535039713e-07,
+        "logit_rms_difference": 0.039765529334545135,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "retained_first_logits_equal_main": true,
+      "retained_first_logits_max_abs_diff": 0.0
+    }
+  ],
+  "final_state_rms": 0.18668497082249647
+}

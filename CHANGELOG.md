@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Versions follow
 ## [Unreleased]
 
 ### Added
+- Continuous sliding-window generation ("Infinite Nekrasov"). The model sees only the last N
+  tokens; the reservoir persists across thousands of tokens.
+  - Conditions: Clean, persistent Fly, periodically reset Fly, random topology.
+  - Same-suffix checkpoint probes on cloned reservoirs.
+  - Streaming telemetry, text and state snapshots written to disk.
+  - CLI `liquidaion-continuous`, GUI window "Continuous generation", and
+    `scripts/run_continuous_experiments.sh`. See `docs/CONTINUOUS_GENERATION.md`.
 - Zenodo DOIs in the README and `CITATION.cff`: concept `10.5281/zenodo.23265197` and v0.2.0 `10.5281/zenodo.23265198`.
 
 ## [0.2.0] - 2026-10-09

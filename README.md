@@ -281,6 +281,38 @@ zeroed state; the materials are in [`publication/habr-fly-question/`](publicatio
 It shows that a strong intervention can steer the content of the text. It says nothing about
 self-identity.
 
+## Continuous generation ("Infinite Nekrasov", development version)
+
+In this mode, Qwen generates thousands of tokens from one seed while seeing only the latest N
+tokens (default 128). The reservoir keeps evolving across the whole run. Conditions:
+
+- Clean;
+- Fly with a persistent reservoir;
+- Fly with the reservoir reset every N tokens;
+- random topology.
+
+Decoding is greedy or seeded top-p sampling. Every condition uses the same random numbers, so
+Clean and Fly diverge only where the reservoir changes the distribution. Same-suffix
+checkpoint probes measure the effect of the retained state. GPU memory stays at 1.16 GiB
+whatever the length.
+
+```bash
+PYTHONPATH=src .venv/bin/python -m liquidaion_fly.continuous --output results/continuous/my-run \
+    --tokens 5000 --window 128 --conditions clean,fly,fly_reset,random --reset-intervals 512 \
+    --decoding sample --temperature 1.0 --top-p 0.95 --eos suppress
+```
+
+In the GUI: **EXPERIMENTS → Continuous generation · sliding window…**
+
+Findings so far:
+
+- Greedy decoding collapses into token loops at once.
+- Sampling sustains 500–2000 diverse tokens before loops form, in Clean and Fly alike.
+- Fly measurably changes token selection, but no condition consistently avoids loops.
+- Once the text cycles, the reservoir phase-locks to the cycle.
+
+Details: [docs/CONTINUOUS_GENERATION.md](docs/CONTINUOUS_GENERATION.md).
+
 ## Replaying a session
 
 ```bash

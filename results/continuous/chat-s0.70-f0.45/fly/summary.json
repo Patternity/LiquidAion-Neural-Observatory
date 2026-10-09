@@ -1,0 +1,1222 @@
+{
+  "condition": "fly",
+  "reset_interval": null,
+  "stop_reason": "total_tokens",
+  "generated_tokens": 5000,
+  "seconds": 145.4744393740002,
+  "tokens_per_second": 34.37029915025485,
+  "window": 128,
+  "max_window_seen": 128,
+  "window_shifts": 4885,
+  "forward_calls": 5000,
+  "reservoir_advances": 10000,
+  "resets": [],
+  "eos_suppressed": [
+    {
+      "step": 75,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 96,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 115,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 134,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 153,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 172,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 191,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 210,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 229,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 248,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 267,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 286,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 305,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 324,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 343,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 362,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 381,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 400,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 419,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 438,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 457,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 476,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 495,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 514,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 533,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 552,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 571,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 590,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 609,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 628,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 647,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 666,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 685,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 704,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 723,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 742,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 761,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 780,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 799,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 818,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 837,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 856,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 875,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 894,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 913,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 932,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 951,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 970,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 989,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1008,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1027,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1046,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1065,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1084,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1103,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1122,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1141,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1160,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1179,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1198,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1217,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1236,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1255,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1274,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1293,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1312,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1331,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1350,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1369,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1388,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1407,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1426,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1445,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1464,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1483,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1502,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1521,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1540,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1559,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1578,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1597,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1616,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1635,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1654,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1673,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1692,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1711,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1730,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1749,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1768,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1787,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1806,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1825,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1844,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1863,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1882,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1901,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1920,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1939,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1958,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1977,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 1996,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2015,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2034,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2053,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2072,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2091,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2110,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2129,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2148,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2167,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2186,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2205,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2224,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2243,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2262,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2281,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2300,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2319,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2338,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2357,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2376,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2395,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2414,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2433,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2452,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2471,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2490,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2509,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2528,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2547,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2566,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2585,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2604,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2623,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2642,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2661,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2680,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2699,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2718,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2737,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2756,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2775,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2794,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2813,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2832,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2851,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2870,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2889,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2908,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2927,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2946,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2965,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 2984,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3003,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3022,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3041,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3060,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3079,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3098,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3117,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3136,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3155,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3174,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3193,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3212,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3231,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3250,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3269,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3288,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3307,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3326,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3345,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3364,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3383,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3402,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3421,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3440,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3459,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3478,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3497,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3516,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3535,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3554,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3573,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3592,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3611,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3630,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3649,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3668,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3687,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3706,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3725,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3744,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3763,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3782,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3801,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3820,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3839,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3858,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3877,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3896,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3915,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3934,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3953,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3972,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 3991,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4010,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4029,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4048,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4067,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4086,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4105,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4124,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4143,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4162,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4181,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4200,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4219,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4238,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4257,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4276,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4295,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4314,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4333,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4352,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4371,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4390,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4409,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4428,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4447,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4466,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4485,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4504,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4523,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4542,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4561,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4580,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4599,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4618,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4637,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4656,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4675,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4694,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4713,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4732,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4751,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4770,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4789,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4808,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4827,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4846,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4865,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4884,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4903,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4922,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4941,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4960,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4979,
+      "eos_token_id": 151645
+    },
+    {
+      "step": 4998,
+      "eos_token_id": 151645
+    }
+  ],
+  "peak_gpu_allocated_bytes": 1245608960,
+  "probes": [
+    {
+      "step": 128,
+      "probe_tokens": 16,
+      "context_tokens": 128,
+      "seed_tokens_in_context": 0,
+      "retained_state_rms": 0.2249403546057957,
+      "retained_vs_reset": {
+        "mean_kl_baseline_to_condition": 0.0005429237516659583,
+        "first_token_kl": 0.0003709259572405311,
+        "logit_rms_difference": 0.06780442595481873,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_retained": {
+        "mean_kl_baseline_to_condition": 0.002368345129470376,
+        "first_token_kl": 0.000359220677075525,
+        "logit_rms_difference": 0.19295819103717804,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_reset": {
+        "mean_kl_baseline_to_condition": 0.0009926006971958195,
+        "first_token_kl": 9.387686234753616e-06,
+        "logit_rms_difference": 0.15202565491199493,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "retained_first_logits_equal_main": true,
+      "retained_first_logits_max_abs_diff": 0.0
+    },
+    {
+      "step": 256,
+      "probe_tokens": 16,
+      "context_tokens": 128,
+      "seed_tokens_in_context": 0,
+      "retained_state_rms": 0.24385222455373695,
+      "retained_vs_reset": {
+        "mean_kl_baseline_to_condition": 4.953641310248646e-06,
+        "first_token_kl": 6.51343804486531e-07,
+        "logit_rms_difference": 0.06807839870452881,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_retained": {
+        "mean_kl_baseline_to_condition": 0.0007064973534142408,
+        "first_token_kl": 1.1759361362044912e-06,
+        "logit_rms_difference": 0.17233407497406006,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_reset": {
+        "mean_kl_baseline_to_condition": 0.0006311526105841858,
+        "first_token_kl": 9.16510101625927e-08,
+        "logit_rms_difference": 0.15185178816318512,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "retained_first_logits_equal_main": true,
+      "retained_first_logits_max_abs_diff": 0.0
+    },
+    {
+      "step": 512,
+      "probe_tokens": 16,
+      "context_tokens": 128,
+      "seed_tokens_in_context": 0,
+      "retained_state_rms": 0.2370129913261788,
+      "retained_vs_reset": {
+        "mean_kl_baseline_to_condition": 5.1009762047039355e-05,
+        "first_token_kl": 4.0889234734188806e-07,
+        "logit_rms_difference": 0.08495641499757767,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_retained": {
+        "mean_kl_baseline_to_condition": 0.0007079023658598063,
+        "first_token_kl": 5.091547824286433e-07,
+        "logit_rms_difference": 0.1858210265636444,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_reset": {
+        "mean_kl_baseline_to_condition": 0.00040638065098280653,
+        "first_token_kl": 2.023110644242477e-08,
+        "logit_rms_difference": 0.15993481874465942,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "retained_first_logits_equal_main": true,
+      "retained_first_logits_max_abs_diff": 0.0
+    },
+    {
+      "step": 1024,
+      "probe_tokens": 16,
+      "context_tokens": 128,
+      "seed_tokens_in_context": 0,
+      "retained_state_rms": 0.23702137013635755,
+      "retained_vs_reset": {
+        "mean_kl_baseline_to_condition": 3.5196368029116744e-05,
+        "first_token_kl": 1.7024231656965246e-06,
+        "logit_rms_difference": 0.07807987183332443,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_retained": {
+        "mean_kl_baseline_to_condition": 0.0007079631927199577,
+        "first_token_kl": 1.958550887402363e-06,
+        "logit_rms_difference": 0.18586504459381104,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_reset": {
+        "mean_kl_baseline_to_condition": 0.00045727056660327316,
+        "first_token_kl": 2.310787757161513e-08,
+        "logit_rms_difference": 0.16252002120018005,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "retained_first_logits_equal_main": true,
+      "retained_first_logits_max_abs_diff": 0.0
+    },
+    {
+      "step": 2048,
+      "probe_tokens": 16,
+      "context_tokens": 128,
+      "seed_tokens_in_context": 0,
+      "retained_state_rms": 0.23298840671633908,
+      "retained_vs_reset": {
+        "mean_kl_baseline_to_condition": 1.2102340646424344e-05,
+        "first_token_kl": 4.650012437501923e-07,
+        "logit_rms_difference": 0.07177277654409409,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_retained": {
+        "mean_kl_baseline_to_condition": 0.0007033301340011681,
+        "first_token_kl": 6.014728419033766e-07,
+        "logit_rms_difference": 0.18118101358413696,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_reset": {
+        "mean_kl_baseline_to_condition": 0.0005658850561542445,
+        "first_token_kl": 3.274897717318369e-08,
+        "logit_rms_difference": 0.1579875648021698,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "retained_first_logits_equal_main": true,
+      "retained_first_logits_max_abs_diff": 0.0
+    },
+    {
+      "step": 4096,
+      "probe_tokens": 16,
+      "context_tokens": 128,
+      "seed_tokens_in_context": 0,
+      "retained_state_rms": 0.23826022681031908,
+      "retained_vs_reset": {
+        "mean_kl_baseline_to_condition": 4.564521447571491e-06,
+        "first_token_kl": 3.724495815122002e-06,
+        "logit_rms_difference": 0.07061651349067688,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_retained": {
+        "mean_kl_baseline_to_condition": 0.0007075270468429313,
+        "first_token_kl": 5.752121638852181e-06,
+        "logit_rms_difference": 0.18208514153957367,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_reset": {
+        "mean_kl_baseline_to_condition": 0.0006913777861453548,
+        "first_token_kl": 2.577880610152323e-07,
+        "logit_rms_difference": 0.16127167642116547,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "retained_first_logits_equal_main": true,
+      "retained_first_logits_max_abs_diff": 0.0
+    }
+  ],
+  "final_state_rms": 0.23307806825602786
+}

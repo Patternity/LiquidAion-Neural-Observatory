@@ -1,0 +1,120 @@
+{
+  "conditions": [
+    {
+      "condition": "clean",
+      "reset_interval": null,
+      "generated_tokens": 1000,
+      "stop_reason": "total_tokens",
+      "seconds": 30.864322552000885,
+      "tokens_per_second": 32.39986875834317,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 0.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": null,
+      "state_rms_last_1000_mean": null,
+      "rms_autocorrelation_peak": null,
+      "distinct_1": 0.202,
+      "distinct_2": 0.4164164164164164,
+      "exact_loop_onset_chunk": null,
+      "checkpoint_kl_retained_vs_reset": {},
+      "checkpoint_argmax_disagreement": {},
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 1,
+        "tokens": 488,
+        "recovered": 0,
+        "list": [
+          {
+            "start": 512,
+            "end": 1000,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": " мне стало голодно иначе решил внести это внесёт булку. Обычно это овощи ия вкуса и это лёгкий блюда, но решил использовать булку из тафитина и да я использовал везу из пропорций. Сколько нужно взять пылесобожителя?\n\nQuestion: В зимний период ведется годовой контроль овощного роста в числах. Выводы скорее всего, читают в числа"
+        },
+        "middle": {
+          "token_offset": 440,
+          "tokens": 120,
+          "text": "-28-29-30-31-32-33-34-35-36-37-38-39-40-41-42-43-44-45-46-47-48-49-50-51-52-53-54-55-56-57-58-59-60-61-62-63-64-65-66-67"
+        },
+        "end": {
+          "token_offset": 880,
+          "tokens": 120,
+          "text": "-156-157-158-159-160-161-162-163-164-165-166-167-168-169-170-171-172-173-174-175-176-177-178-179-180-181-182-183-184-185"
+        }
+      }
+    },
+    {
+      "condition": "fly",
+      "reset_interval": null,
+      "generated_tokens": 1000,
+      "stop_reason": "total_tokens",
+      "seconds": 42.48146759500014,
+      "tokens_per_second": 23.53967639568307,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 2.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": 0.17544745232788864,
+      "state_rms_last_1000_mean": 0.17544745232788864,
+      "rms_autocorrelation_peak": {
+        "lag": 2,
+        "value": 0.773222792326306
+      },
+      "distinct_1": 0.442,
+      "distinct_2": 0.8198198198198198,
+      "exact_loop_onset_chunk": null,
+      "checkpoint_kl_retained_vs_reset": {
+        "128": 7.431713339417608e-05,
+        "256": 0.0002323426132559411,
+        "512": 0.00048477406093472297
+      },
+      "checkpoint_argmax_disagreement": {
+        "128": 0.0,
+        "256": 0.0625,
+        "512": 0.0
+      },
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 0,
+        "tokens": 0,
+        "recovered": 0,
+        "list": []
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": " мне стало лёгкое тепло от солнца и я начал носить в себя купюлярный воротник, потом в другой день пришла бешеная ларигова гравюра на миля, быстро я ко мне на её ошибка. Не подумав об этом, я стал за парту, воротник ещё накидал на лёгкое шерстное седово. Днём после лыжаев моя седово шело с грибами,"
+        },
+        "middle": {
+          "token_offset": 440,
+          "tokens": 120,
+          "text": "цсетях об общих мечтах. [ссылка]» и т.д.\n\nТеперь пройдемся до алгоритма. Как вы привёл в код?\n\nВот пример для алгоритма:\n\nwhile (True):\n    [действия]\n    break\n\nВот пример для он-го-иниции: где конечное передается без ввода.\n\nТеперь посетителя пришёл на страницу. Пример кода для алгоритма:\n\nwhile (True):\n    print(message"
+        },
+        "end": {
+          "token_offset": 880,
+          "tokens": 120,
+          "text": " res.status_code == 200:\n    print(res.text)\nelse:\n    print(\"Загрузка не удалась\")\n```\n\nПроверьте с таким примером?\n\nНаследник: \n\n[Ваша ссылка] \n```\nres = fetch(url)\nif res.status_code == 200:\n    print(res.text)\nelse:\n    print(\"Загрузка не удалась\")\n```\n\nПример оопс:\n\n```python\ndef fetch(url):\n    # тут самодельные коды для запуска\n\n   "
+        }
+      }
+    }
+  ],
+  "figures": [
+    "reservoir_rms.png",
+    "checkpoint_kl.png",
+    "state_similarity.png",
+    "diversity.png"
+  ],
+  "first_divergence_from_clean": {
+    "fly": 2
+  }
+}

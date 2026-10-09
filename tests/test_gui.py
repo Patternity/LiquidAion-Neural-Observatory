@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import hashlib
+import json
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 import sys
 import types
@@ -322,4 +323,52 @@ def test_published_recording_replays_final_chats_with_stop_metadata(app):
         recorded = worker.replay.messages[branch]
         assert any("stop_reason" in message for message in recorded)
         assert [(m["role"], m["content"]) for m in chats[-1][branch]] == [(m["role"], m["content"]) for m in recorded]
+    shiboken6.delete(worker)
+
+
+def test_continuous_dialog_emits_run_and_shows_progress(window, tmp_path):
+    calls = []
+    window.command.connect(lambda command, payload: calls.append((command, payload)))
+    window.open_continuous()
+    dialog = window.continuous_dialog
+    dialog.output_root = tmp_path
+    dialog.window_size.setValue(64)
+    dialog.total.setValue(256)
+    dialog.condition.setCurrentIndex(dialog.condition.findData("fly_reset"))
+    dialog.reset_interval.setValue(128)
+    dialog.request_start()
+    command, payload = calls[-1]
+    assert command == "continuous"
+    assert payload["window"] == 64 and payload["total_tokens"] == 256 and payload["reset_interval"] == 128
+    assert payload["condition"] == "fly_reset" and payload["output"].startswith(str(tmp_path))
+    assert (payload["decoding"], payload["temperature"], payload["top_p"], payload["sampling_seed"]) == ("sample", 0.8, 0.9, 42)
+    assert not window.continuous_button.isEnabled() and dialog.stop.isEnabled()
+    dialog.on_progress({"step": 9, "total": 256, "tokens_per_second": 30.0, "window_len": 64, "state_rms": 0.12,
+                        "text": " далее", "rms": [(i, 0.1) for i in range(10)], "resets": []})
+    assert dialog.text.toPlainText().endswith(" далее")
+    assert len(dialog.plot.values) == 10 and "token 10 / 256" in dialog.progress.text()
+    window.on_finished("continuous", {"stop_reason": "cancelled", "generated_tokens": 10, "tokens_per_second": 30.0,
+                                      "peak_gpu_allocated_bytes": None})
+    assert window.continuous_button.isEnabled() and not dialog.running
+    assert "cancelled" in dialog.progress.text()
+
+
+def test_worker_runs_continuous_condition_and_streams(app, monkeypatch, tmp_path):
+    from conftest import build_engine
+    engine = build_engine(monkeypatch, tmp_path)
+    worker = EngineWorker(ObservatoryConfig(), "unused", "unused")
+    worker.engine = engine
+    updates, snapshots, finished = [], [], []
+    worker.continuous_progress.connect(updates.append)
+    worker.telemetry.connect(snapshots.append)
+    worker.finished.connect(lambda command, result: finished.append((command, result)))
+    worker.execute("continuous", {"seed_text": "Once", "window": 8, "total_tokens": 20, "condition": "fly",
+                                  "reset_interval": None, "strength": 0.25, "feedback": 0.25, "eos_policy": "stop",
+                                  "prompt_policy": "raw", "output": str(tmp_path / "run")})
+    command, summary = finished[-1]
+    assert command == "continuous" and summary["generated_tokens"] == 20
+    assert "".join(update["text"] for update in updates) == engine.llm.tokenizer.decode(
+        json.loads((tmp_path / "run" / "token_ids.json").read_text())["generated"])
+    assert any(snapshot.get("branch") == "continuous" and len(snapshot["state"]) == 3 for snapshot in snapshots)
+    assert (tmp_path / "run" / "telemetry.jsonl").exists()
     shiboken6.delete(worker)

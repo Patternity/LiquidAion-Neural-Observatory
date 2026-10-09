@@ -1,0 +1,120 @@
+{
+  "conditions": [
+    {
+      "condition": "clean",
+      "reset_interval": null,
+      "generated_tokens": 1000,
+      "stop_reason": "total_tokens",
+      "seconds": 29.176959144999273,
+      "tokens_per_second": 34.273619640427576,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 0.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": null,
+      "state_rms_last_1000_mean": null,
+      "rms_autocorrelation_peak": null,
+      "distinct_1": 0.192,
+      "distinct_2": 0.30430430430430433,
+      "exact_loop_onset_chunk": 512,
+      "checkpoint_kl_retained_vs_reset": {},
+      "checkpoint_argmax_disagreement": {},
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 1,
+        "tokens": 488,
+        "recovered": 0,
+        "list": [
+          {
+            "start": 512,
+            "end": 1000,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": " вдруг увидел бойню на живом мосту с промежуточным живописным зоной. Один из двух бойцов был сидел на диване, в темноте оставлял руки на консоль. В другой из бойцов был студент, мечтатель, с пониманием, он смотрел в окно. Два часа после этого вдруг он обратился к тренажеру, сказал: \"Иду, пойду"
+        },
+        "middle": {
+          "token_offset": 440,
+          "tokens": 120,
+          "text": " Answer:** D\n**Final Answer:** D\n**Final Answer:** D\n\nThe correct answer is D.\n**Final Answer:** D\n**Final Answer:** D\n**Final Answer:** D\n**Final Answer:** D\n\nThe correct answer is D.\n**Final Answer:** D\n**Final Answer:** D\n**Final Answer:** D\n**Final Answer:** D\n\nThe correct answer is D.\n**Final Answer:** D\n**Final Answer:** D\n**Final Answer:** D\n**Final Answer:** D\n\nThe correct answer is D.\n**Final Answer:** D\n**Final"
+        },
+        "end": {
+          "token_offset": 880,
+          "tokens": 120,
+          "text": " D.\n**Final Answer:** D\n**Final Answer:** D\n**Final Answer:** D\n**Final Answer:** D\n\nThe correct answer is D.\n**Final Answer:** D\n**Final Answer:** D\n**Final Answer:** D\n**Final Answer:** D\n\nThe correct answer is D.\n**Final Answer:** D\n**Final Answer:** D\n**Final Answer:** D\n**Final Answer:** D\n\nThe correct answer is D.\n**Final Answer:** D\n**Final Answer:** D\n**Final Answer:** D\n**Final Answer:** D\n\nThe correct answer is"
+        }
+      }
+    },
+    {
+      "condition": "fly",
+      "reset_interval": null,
+      "generated_tokens": 1000,
+      "stop_reason": "total_tokens",
+      "seconds": 40.47671347400137,
+      "tokens_per_second": 24.705563129336348,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 885,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 2.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": 0.16952843517326346,
+      "state_rms_last_1000_mean": 0.16952843517326346,
+      "rms_autocorrelation_peak": {
+        "lag": 2,
+        "value": 0.6845608590700386
+      },
+      "distinct_1": 0.353,
+      "distinct_2": 0.6406406406406406,
+      "exact_loop_onset_chunk": null,
+      "checkpoint_kl_retained_vs_reset": {
+        "128": 9.910881559967997e-05,
+        "256": 7.903239009166065e-05,
+        "512": 0.0003547766354340591
+      },
+      "checkpoint_argmax_disagreement": {
+        "128": 0.0,
+        "256": 0.0625,
+        "512": 0.0625
+      },
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 0,
+        "tokens": 0,
+        "recovered": 0,
+        "list": []
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": " вдруг увидел бойню на живом мосту. Кто из них – мужчина с черным браслетом и женщину с ожившей коптильной? Там вдруг появился другой человек, который не в снах, но что-то подозревал. Возможно, он подозревал, что бойни близка к власти, и сейчас он начинает делать все возможное, чтобы сделать всё возможное. Кто из них? Возможно, он не сам, а друг человека"
+        },
+        "middle": {
+          "token_offset": 440,
+          "tokens": 120,
+          "text": "афоры, метафоры, рифмы и прилагательные. \n\n**Пример 1:** *\"Мы, как мы обида, чувствуем это не только в себе, но и в других.\"*\n\n**Пример 2:** *\"Так как каждый случай уникален, мы должны признаться в своих иначествах.\"*\n\n**Пример 3:** *\"Сердце, как листья, сдвинется с линии, пока листья не истекает.\"*\n\n**Пример 4:**"
+        },
+        "end": {
+          "token_offset": 880,
+          "tokens": 120,
+          "text": "Пример 16:** *\"Зелень — это не только зелень, но и восхищение.\"*\n\n**Пример 17:** *\"Сон дышит, а тишина — сердце.\"*\n\n**Пример 18:** *\"Сердце — это дыхание.\"*\n\n**Пример 19:** *\"Зелень — это яблоко.\"*\n\n**Пример 20:** *\"Охота — это росток.\"*\n\n**Пример 21:** *\"Солнце — это огон"
+        }
+      }
+    }
+  ],
+  "figures": [
+    "reservoir_rms.png",
+    "checkpoint_kl.png",
+    "state_similarity.png",
+    "diversity.png"
+  ],
+  "first_divergence_from_clean": {
+    "fly": 15
+  }
+}

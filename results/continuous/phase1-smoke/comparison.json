@@ -1,0 +1,122 @@
+{
+  "conditions": [
+    {
+      "condition": "clean",
+      "reset_interval": null,
+      "generated_tokens": 256,
+      "stop_reason": "total_tokens",
+      "seconds": 5.074631020999732,
+      "tokens_per_second": 50.44701751528853,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 141,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 0.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": null,
+      "state_rms_last_1000_mean": null,
+      "rms_autocorrelation_peak": null,
+      "distinct_1": 0.05078125,
+      "distinct_2": 0.06274509803921569,
+      "exact_loop_onset_chunk": 0,
+      "checkpoint_kl_retained_vs_reset": {},
+      "checkpoint_argmax_disagreement": {},
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 1,
+        "tokens": 256,
+        "recovered": 0,
+        "list": [
+          {
+            "start": 0,
+            "end": 256,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": ", в саду сидели птицы, и вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вд"
+        },
+        "middle": {
+          "token_offset": 68,
+          "tokens": 120,
+          "text": "друг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг в"
+        },
+        "end": {
+          "token_offset": 136,
+          "tokens": 120,
+          "text": " вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг"
+        }
+      }
+    },
+    {
+      "condition": "fly",
+      "reset_interval": null,
+      "generated_tokens": 256,
+      "stop_reason": "total_tokens",
+      "seconds": 6.3152060140000685,
+      "tokens_per_second": 40.53707819388285,
+      "peak_gpu_allocated_bytes": 1241089024,
+      "window_shifts": 141,
+      "max_window_seen": 128,
+      "reservoir_advances_per_token": 2.0,
+      "eos_suppressed": 0,
+      "state_rms_mean": 0.19390185691070672,
+      "state_rms_last_1000_mean": 0.19390185691070672,
+      "rms_autocorrelation_peak": {
+        "lag": 2,
+        "value": 0.7976323247307707
+      },
+      "distinct_1": 0.05078125,
+      "distinct_2": 0.06274509803921569,
+      "exact_loop_onset_chunk": 0,
+      "checkpoint_kl_retained_vs_reset": {
+        "128": 1.72110375050744e-06
+      },
+      "checkpoint_argmax_disagreement": {
+        "128": 0.0
+      },
+      "probe_integrity": true,
+      "repetition_intervals": {
+        "count": 1,
+        "tokens": 256,
+        "recovered": 0,
+        "list": [
+          {
+            "start": 0,
+            "end": 256,
+            "recovered": false
+          }
+        ]
+      },
+      "excerpts": {
+        "beginning": {
+          "token_offset": 0,
+          "tokens": 120,
+          "text": ", в саду сидели птицы, и вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вд"
+        },
+        "middle": {
+          "token_offset": 68,
+          "tokens": 120,
+          "text": "друг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг в"
+        },
+        "end": {
+          "token_offset": 136,
+          "tokens": 120,
+          "text": " вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг вдруг"
+        }
+      }
+    }
+  ],
+  "figures": [
+    "reservoir_rms.png",
+    "checkpoint_kl.png",
+    "state_similarity.png",
+    "diversity.png"
+  ],
+  "first_divergence_from_clean": {
+    "fly": null
+  }
+}
