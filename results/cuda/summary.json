@@ -1,0 +1,428 @@
+{
+  "status": "pathway_verified",
+  "configuration": {
+    "model": "Qwen/Qwen3-0.6B",
+    "revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+    "device": "cuda",
+    "threads": 4,
+    "seed": 42,
+    "features": 64,
+    "capture_layer": 6,
+    "steer_layer": 14,
+    "strength": 0.25,
+    "feedback": 0.25,
+    "max_tokens": 32,
+    "idle_steps": 10,
+    "dynamics": {
+      "dt": 0.2,
+      "tau": 1.0,
+      "gain": 0.9,
+      "input_strength": 0.5
+    },
+    "prompts": [
+      "In one short sentence, explain why the sky appears blue.",
+      "A friend helped me fix a difficult bug. Write one short thank-you sentence.",
+      "Someone insulted my work. Suggest one calm sentence to answer them."
+    ]
+  },
+  "provenance": {
+    "dataset": "FlyWire FAFB",
+    "materialization": 783,
+    "retrieved_utc": "2026-10-09T00:03:22.764105+00:00",
+    "sources": [
+      {
+        "name": "classification.csv.gz",
+        "url": "https://storage.googleapis.com/flywire-data/codex/data/fafb/783/classification.csv.gz",
+        "sha256": "e946b552f4056dfc977707be0674609832c3f64332a22d69dc0d9615e7aae663",
+        "bytes": 934402
+      },
+      {
+        "name": "neurons.csv.gz",
+        "url": "https://storage.googleapis.com/flywire-data/codex/data/fafb/783/neurons.csv.gz",
+        "sha256": "6a6b3759e635f0f35a677d169052362131ec61d95f55919298b55c43fce4e719",
+        "bytes": 1679884
+      },
+      {
+        "name": "connections.csv.gz",
+        "url": "https://storage.googleapis.com/flywire-data/codex/data/fafb/783/connections.csv.gz",
+        "sha256": "d49dd692e59e153aa3c83f5257bfc0eff51247b86d7bb183386c6d1622c70fc9",
+        "bytes": 50289304
+      }
+    ],
+    "license": "CC BY-NC 4.0",
+    "license_source": "https://flywire.ai/guidelines",
+    "selection": "CX class; largest SCC; top weighted degree; largest induced SCC",
+    "requested_nodes": 512,
+    "candidate_nodes": 2878,
+    "candidate_largest_scc": 2525,
+    "nodes": 512,
+    "edges": 16731,
+    "synapses": 310999,
+    "strongly_connected": true,
+    "edge_sha256": "5c524dd9aca9557ab94ad04f36668e6a86d108c905f31d909b43cc916e5bae54",
+    "node_sha256": "62f91abd6f9da4a4f5f81f8307c2a4be0e894c8d95ad240b8cba63178f1a20f4",
+    "transformations": [
+      "aggregate neuropil rows per directed pair",
+      "induce selected nodes",
+      "remove all connections to omitted neurons"
+    ],
+    "weight_semantics": "Positive synapse counts; no neurotransmitter sign assignment",
+    "annotation_warning": "Codex annotations can change independently of materialization; hashes freeze this export",
+    "synapse_warning": "Materialization alone does not identify the synapse-prediction release; export hashes are authoritative"
+  },
+  "model_config": {
+    "vocab_size": 151936,
+    "max_position_embeddings": 40960,
+    "hidden_size": 1024,
+    "intermediate_size": 3072,
+    "num_hidden_layers": 28,
+    "num_attention_heads": 16,
+    "use_sliding_window": false,
+    "sliding_window": null,
+    "max_window_layers": 28,
+    "num_key_value_heads": 8,
+    "head_dim": 128,
+    "hidden_act": "silu",
+    "initializer_range": 0.02,
+    "rms_norm_eps": 1e-06,
+    "use_cache": true,
+    "rope_theta": 1000000,
+    "rope_scaling": null,
+    "attention_bias": false,
+    "attention_dropout": 0.0,
+    "layer_types": [
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention"
+    ],
+    "return_dict": true,
+    "output_hidden_states": false,
+    "torchscript": false,
+    "dtype": "float16",
+    "pruned_heads": {},
+    "tie_word_embeddings": true,
+    "chunk_size_feed_forward": 0,
+    "is_encoder_decoder": false,
+    "is_decoder": false,
+    "cross_attention_hidden_size": null,
+    "add_cross_attention": false,
+    "tie_encoder_decoder": false,
+    "architectures": [
+      "Qwen3ForCausalLM"
+    ],
+    "finetuning_task": null,
+    "id2label": {
+      "0": "LABEL_0",
+      "1": "LABEL_1"
+    },
+    "label2id": {
+      "LABEL_0": 0,
+      "LABEL_1": 1
+    },
+    "task_specific_params": null,
+    "problem_type": null,
+    "tokenizer_class": null,
+    "prefix": null,
+    "bos_token_id": 151643,
+    "pad_token_id": null,
+    "eos_token_id": 151645,
+    "sep_token_id": null,
+    "decoder_start_token_id": null,
+    "max_length": 20,
+    "min_length": 0,
+    "do_sample": false,
+    "early_stopping": false,
+    "num_beams": 1,
+    "num_beam_groups": 1,
+    "diversity_penalty": 0.0,
+    "temperature": 1.0,
+    "top_k": 50,
+    "top_p": 1.0,
+    "typical_p": 1.0,
+    "repetition_penalty": 1.0,
+    "length_penalty": 1.0,
+    "no_repeat_ngram_size": 0,
+    "encoder_no_repeat_ngram_size": 0,
+    "bad_words_ids": null,
+    "num_return_sequences": 1,
+    "output_scores": false,
+    "return_dict_in_generate": false,
+    "forced_bos_token_id": null,
+    "forced_eos_token_id": null,
+    "remove_invalid_values": false,
+    "exponential_decay_length_penalty": null,
+    "suppress_tokens": null,
+    "begin_suppress_tokens": null,
+    "_name_or_path": "Qwen/Qwen3-0.6B",
+    "transformers_version": "4.56.2",
+    "model_type": "qwen3",
+    "tf_legacy_loss": false,
+    "use_bfloat16": false,
+    "output_attentions": false
+  },
+  "model_load_seconds": 1.0208761489993776,
+  "initial_environment": {
+    "os": "Linux-7.0.0-34-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "cpu_count": 16,
+    "cpu": "x86_64",
+    "cpu_capabilities": {
+      "model name": "AMD Ryzen 7 7700X 8-Core Processor",
+      "flags": "fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good amd_lbr_v2 nopl xtopology nonstop_tsc cpuid extd_apicid aperfmperf rapl pni pclmulqdq monitor ssse3 fma cx16 sse4_1 sse4_2 x2apic movbe popcnt aes xsave avx f16c rdrand lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt tce topoext perfctr_core perfctr_nb bpext perfctr_llc mwaitx cpuid_fault cpb cat_l3 cdp_l3 hw_pstate ssbd mba perfmon_v2 ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid cqm rdt_a avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local user_shstk avx512_bf16 clzero irperf xsaveerptr rdpru wbnoinvd cppc arat npt lbrv svm_lock nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold avic vgif x2avic v_spec_ctrl vnmi avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq rdpid overflow_recov succor smca fsrm flush_l1d"
+    },
+    "system_memory": {
+      "MemTotal": 33371242496,
+      "MemAvailable": 17690857472
+    },
+    "ram_bytes": 33371242496,
+    "disk_free_bytes": 58625273856,
+    "nvidia_smi": "NVIDIA GeForce RTX 3070 Ti, 8192 MiB, 5999 MiB, 595.71.05",
+    "torch_cuda_available": true,
+    "torch_cuda_version": "12.8",
+    "packages": {
+      "torch": "2.8.0+cu128",
+      "transformers": "4.56.2",
+      "numpy": "2.3.5",
+      "scipy": "1.17.0",
+      "pandas": "2.2.3"
+    },
+    "peak_process_rss_bytes": 866209792
+  },
+  "conditions": [
+    {
+      "mean_kl_baseline_to_condition": 0.0,
+      "first_token_kl": 0.0,
+      "logit_rms_difference": 0.0,
+      "argmax_disagreement_fraction": 0.0,
+      "prompt_index": 0,
+      "mode": "none",
+      "mean_delta_relative_rms": 0.0,
+      "max_delta_relative_rms": 0.0,
+      "tokens_per_second": 39.65877471267146
+    },
+    {
+      "mean_kl_baseline_to_condition": 0.00048313977894192837,
+      "first_token_kl": 2.8980028947880174e-06,
+      "logit_rms_difference": 0.044239453971385956,
+      "argmax_disagreement_fraction": 0.0,
+      "prompt_index": 0,
+      "mode": "static",
+      "mean_delta_relative_rms": 0.01413775366381742,
+      "max_delta_relative_rms": 0.014151511713862419,
+      "tokens_per_second": 37.74526022303135
+    },
+    {
+      "mean_kl_baseline_to_condition": 0.0031764293363597835,
+      "first_token_kl": 2.8980028947880174e-06,
+      "logit_rms_difference": 0.10988166928291321,
+      "argmax_disagreement_fraction": 0.03125,
+      "prompt_index": 0,
+      "mode": "random",
+      "mean_delta_relative_rms": 0.03821151037118398,
+      "max_delta_relative_rms": 0.044721562415361404,
+      "tokens_per_second": 39.445612137275425
+    },
+    {
+      "mean_kl_baseline_to_condition": 0.005100389192748966,
+      "first_token_kl": 2.8980028947880174e-06,
+      "logit_rms_difference": 0.1292600929737091,
+      "argmax_disagreement_fraction": 0.0625,
+      "prompt_index": 0,
+      "mode": "fly",
+      "mean_delta_relative_rms": 0.041523198276991025,
+      "max_delta_relative_rms": 0.04907878115773201,
+      "tokens_per_second": 40.30717975734815
+    },
+    {
+      "mean_kl_baseline_to_condition": 0.0,
+      "first_token_kl": 0.0,
+      "logit_rms_difference": 0.0,
+      "argmax_disagreement_fraction": 0.0,
+      "prompt_index": 1,
+      "mode": "none",
+      "mean_delta_relative_rms": 0.0,
+      "max_delta_relative_rms": 0.0,
+      "tokens_per_second": 37.298605526703454
+    },
+    {
+      "mean_kl_baseline_to_condition": 0.0004820460419768742,
+      "first_token_kl": 2.009903901860669e-05,
+      "logit_rms_difference": 0.03762740641832352,
+      "argmax_disagreement_fraction": 0.0,
+      "prompt_index": 1,
+      "mode": "static",
+      "mean_delta_relative_rms": 0.01393380258232355,
+      "max_delta_relative_rms": 0.013939430005848408,
+      "tokens_per_second": 38.53211967167609
+    },
+    {
+      "mean_kl_baseline_to_condition": 0.0023124339232915942,
+      "first_token_kl": 2.009903901860669e-05,
+      "logit_rms_difference": 0.08163025975227356,
+      "argmax_disagreement_fraction": 0.0,
+      "prompt_index": 1,
+      "mode": "random",
+      "mean_delta_relative_rms": 0.03381828973069787,
+      "max_delta_relative_rms": 0.04339601472020149,
+      "tokens_per_second": 38.80064415273728
+    },
+    {
+      "mean_kl_baseline_to_condition": 0.002873340201427297,
+      "first_token_kl": 2.009903901860669e-05,
+      "logit_rms_difference": 0.08754226565361023,
+      "argmax_disagreement_fraction": 0.0,
+      "prompt_index": 1,
+      "mode": "fly",
+      "mean_delta_relative_rms": 0.034855575766414404,
+      "max_delta_relative_rms": 0.04587939754128456,
+      "tokens_per_second": 38.05742829389564
+    },
+    {
+      "mean_kl_baseline_to_condition": 0.0,
+      "first_token_kl": 0.0,
+      "logit_rms_difference": 0.0,
+      "argmax_disagreement_fraction": 0.0,
+      "prompt_index": 2,
+      "mode": "none",
+      "mean_delta_relative_rms": 0.0,
+      "max_delta_relative_rms": 0.0,
+      "tokens_per_second": 39.8496999289405
+    },
+    {
+      "mean_kl_baseline_to_condition": 0.000411568610461302,
+      "first_token_kl": 0.0002697238199654674,
+      "logit_rms_difference": 0.03752914443612099,
+      "argmax_disagreement_fraction": 0.0,
+      "prompt_index": 2,
+      "mode": "static",
+      "mean_delta_relative_rms": 0.014062472690756504,
+      "max_delta_relative_rms": 0.014073554426431656,
+      "tokens_per_second": 39.62303473776032
+    },
+    {
+      "mean_kl_baseline_to_condition": 0.001470206808597192,
+      "first_token_kl": 0.0002697238199654674,
+      "logit_rms_difference": 0.07113073021173477,
+      "argmax_disagreement_fraction": 0.0,
+      "prompt_index": 2,
+      "mode": "random",
+      "mean_delta_relative_rms": 0.031719519900014766,
+      "max_delta_relative_rms": 0.04011073336005211,
+      "tokens_per_second": 39.07238561873793
+    },
+    {
+      "mean_kl_baseline_to_condition": 0.002014081599101472,
+      "first_token_kl": 0.0002697238199654674,
+      "logit_rms_difference": 0.0791553258895874,
+      "argmax_disagreement_fraction": 0.0,
+      "prompt_index": 2,
+      "mode": "fly",
+      "mean_delta_relative_rms": 0.03326158619557436,
+      "max_delta_relative_rms": 0.044568173587322235,
+      "tokens_per_second": 40.235051935432146
+    }
+  ],
+  "scope": "Untrained adapters; causal pathway demonstration, not semantic control",
+  "generated_examples": [
+    {
+      "prompt": "In one short sentence, explain why the sky appears blue.",
+      "baseline": "The sky appears blue because it contains a substance called **blue-violet light**, which is scattered by the Earth's atmosphere in the form of **Rayleigh scattering",
+      "fly": "The sky appears blue because it contains a substance called **blue-violet light**, which is scattered more efficiently by the Earth's atmosphere than other colors.",
+      "same_tokens": false
+    },
+    {
+      "prompt": "A friend helped me fix a difficult bug. Write one short thank-you sentence.",
+      "baseline": "Thank you for helping me fix the bug!",
+      "fly": "Thank you for helping me fix the bug!",
+      "same_tokens": true
+    },
+    {
+      "prompt": "Someone insulted my work. Suggest one calm sentence to answer them.",
+      "baseline": "\"Thank you for your feedback\u2014I appreciate your perspective!\"",
+      "fly": "\"Thank you for your feedback\u2014I appreciate your perspective!\"",
+      "same_tokens": true
+    }
+  ],
+  "repeat": {
+    "bitwise_equal_logits": true,
+    "bitwise_equal_states": true
+  },
+  "feedback_comparison": {
+    "mean_kl_baseline_to_condition": 0.0007566323434209873,
+    "first_token_kl": 0.0,
+    "logit_rms_difference": 0.045791782438755035,
+    "argmax_disagreement_fraction": 0.0
+  },
+  "zero_strength_equal_baseline": true,
+  "fly_vs_random_same_context": {
+    "mean_kl_baseline_to_condition": 0.0017229163570391757,
+    "first_token_kl": 0.0,
+    "logit_rms_difference": 0.0701398104429245,
+    "argmax_disagreement_fraction": 0.03125
+  },
+  "persistence": {
+    "mean_kl_baseline_to_condition": 0.0007059889957411743,
+    "first_token_kl": 0.0002183192746421903,
+    "logit_rms_difference": 0.05486452952027321,
+    "argmax_disagreement_fraction": 0.0,
+    "state_rms_before_idle": 0.15361333684487366,
+    "state_rms_after_idle": 0.0723506318758844,
+    "state_l2_idle_change": 2.4310272470742778,
+    "restored_bitwise_equal_logits": true,
+    "new_text_context_and_kv_cache_for_b": true
+  },
+  "environment": {
+    "os": "Linux-7.0.0-34-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "cpu_count": 16,
+    "cpu": "x86_64",
+    "cpu_capabilities": {
+      "model name": "AMD Ryzen 7 7700X 8-Core Processor",
+      "flags": "fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good amd_lbr_v2 nopl xtopology nonstop_tsc cpuid extd_apicid aperfmperf rapl pni pclmulqdq monitor ssse3 fma cx16 sse4_1 sse4_2 x2apic movbe popcnt aes xsave avx f16c rdrand lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt tce topoext perfctr_core perfctr_nb bpext perfctr_llc mwaitx cpuid_fault cpb cat_l3 cdp_l3 hw_pstate ssbd mba perfmon_v2 ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid cqm rdt_a avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local user_shstk avx512_bf16 clzero irperf xsaveerptr rdpru wbnoinvd cppc arat npt lbrv svm_lock nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold avic vgif x2avic v_spec_ctrl vnmi avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq rdpid overflow_recov succor smca fsrm flush_l1d"
+    },
+    "system_memory": {
+      "MemTotal": 33371242496,
+      "MemAvailable": 15915020288
+    },
+    "ram_bytes": 33371242496,
+    "disk_free_bytes": 58622300160,
+    "nvidia_smi": "NVIDIA GeForce RTX 3070 Ti, 8192 MiB, 4533 MiB, 595.71.05",
+    "torch_cuda_available": true,
+    "torch_cuda_version": "12.8",
+    "packages": {
+      "torch": "2.8.0+cu128",
+      "transformers": "4.56.2",
+      "numpy": "2.3.5",
+      "scipy": "1.17.0",
+      "pandas": "2.2.3"
+    },
+    "peak_process_rss_bytes": 3953487872
+  },
+  "cuda_peak_allocated_bytes": 1237997056,
+  "total_seconds": 14.525928653998562
+}

@@ -1,0 +1,21 @@
+Defaulting to user installation because normal site-packages is not writeable
+Obtaining file:///workspace/scratch/1697ca94aed1/liquidaion-fly
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Checking if build backend supports build_editable: started
+  Checking if build backend supports build_editable: finished with status 'done'
+  Getting requirements to build editable: started
+  Getting requirements to build editable: finished with status 'done'
+  Preparing editable metadata (pyproject.toml): started
+  Preparing editable metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: liquidaion-fly
+  Building editable for liquidaion-fly (pyproject.toml): started
+  Building editable for liquidaion-fly (pyproject.toml): finished with status 'done'
+  Created wheel for liquidaion-fly: filename=liquidaion_fly-0.1.0-0.editable-py3-none-any.whl size=2713 sha256=4386237753d6a8bd74042ad361fd48a55eece89aa50c003a21d7934b3bd3d21e
+  Stored in directory: /tmp/pip-ephem-wheel-cache-z_km4gst/wheels/23/44/64/6d957355701dbd5949a256dbc9f4ec12cb92adc8f213992103
+Successfully built liquidaion-fly
+Installing collected packages: liquidaion-fly
+  WARNING: The script liquidaion-fly is installed in '/root/.local/bin' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+Successfully installed liquidaion-fly-0.1.0
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.

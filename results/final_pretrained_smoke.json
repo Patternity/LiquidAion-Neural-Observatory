@@ -1,0 +1,25 @@
+{
+  "baseline": "Hello! How",
+  "zero_strength": {
+    "mean_kl_baseline_to_condition": 0.0,
+    "first_token_kl": 0.0,
+    "logit_rms_difference": 0.0,
+    "argmax_disagreement_fraction": 0.0
+  },
+  "fly": {
+    "mean_kl_baseline_to_condition": 8.260590746941552e-05,
+    "first_token_kl": 2.6246879850899555e-05,
+    "logit_rms_difference": 0.040653299540281296,
+    "argmax_disagreement_fraction": 0.0
+  },
+  "cache_forward_lengths": [
+    17,
+    1,
+    1
+  ],
+  "live_state_rms": [
+    0.0552117640604325,
+    0.08805602472381192,
+    0.12392279485189464
+  ]
+}

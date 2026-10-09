@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" width="960" height="360" font-family="Inter, Arial, sans-serif">
+  <title>LiquidAion architecture: Clean and Fly branches of one Qwen3-0.6B coupled to a FlyWire reservoir</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#52514e"/>
+    </marker>
+  </defs>
+  <rect width="960" height="360" fill="#fcfcfb"/>
+  <!-- Prompt -->
+  <rect x="20" y="180" width="130" height="56" rx="8" fill="#ffffff" stroke="#52514e"/>
+  <text x="85" y="205" text-anchor="middle" font-size="14" fill="#0b0b0b">Shared prompt</text>
+  <text x="85" y="224" text-anchor="middle" font-size="11" fill="#52514e">one message</text>
+  <!-- Clean branch -->
+  <rect x="200" y="30" width="520" height="90" rx="10" fill="#eaf2fc" stroke="#2a78d6"/>
+  <text x="220" y="56" font-size="15" font-weight="700" fill="#0b0b0b">Clean</text>
+  <text x="220" y="78" font-size="12" fill="#52514e">own history and KV cache</text>
+  <rect x="440" y="48" width="200" height="52" rx="6" fill="#ffffff" stroke="#2a78d6"/>
+  <text x="540" y="72" text-anchor="middle" font-size="13" fill="#0b0b0b">Qwen3-0.6B (frozen)</text>
+  <text x="540" y="90" text-anchor="middle" font-size="11" fill="#52514e">no hooks · greedy</text>
+  <!-- Fly branch -->
+  <rect x="200" y="160" width="520" height="160" rx="10" fill="#e8f6f0" stroke="#1baf7a"/>
+  <text x="220" y="186" font-size="15" font-weight="700" fill="#0b0b0b">Fly</text>
+  <text x="220" y="208" font-size="12" fill="#52514e">own history and KV cache</text>
+  <text x="220" y="226" font-size="12" fill="#52514e">same weights</text>
+  <rect x="380" y="180" width="140" height="44" rx="6" fill="#ffffff" stroke="#1baf7a"/>
+  <text x="450" y="207" text-anchor="middle" font-size="13" fill="#0b0b0b">Layer 6 (observe)</text>
+  <rect x="560" y="180" width="140" height="44" rx="6" fill="#ffffff" stroke="#1baf7a"/>
+  <text x="630" y="207" text-anchor="middle" font-size="13" fill="#0b0b0b">Layer 14 (steer)</text>
+  <line x1="520" y1="202" x2="556" y2="202" stroke="#52514e" stroke-width="2" marker-end="url(#arrow)"/>
+  <!-- Reservoir -->
+  <rect x="420" y="250" width="240" height="56" rx="28" fill="#ffffff" stroke="#eb6834" stroke-width="2"/>
+  <text x="540" y="274" text-anchor="middle" font-size="13" font-weight="700" fill="#0b0b0b">FlyWire reservoir</text>
+  <text x="540" y="292" text-anchor="middle" font-size="11" fill="#52514e">512 neurons · 16,731 edges · leaky tanh</text>
+  <path d="M450 224 L450 246" stroke="#52514e" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <text x="444" y="242" text-anchor="end" font-size="11" fill="#52514e">64 features</text>
+  <path d="M600 250 L600 228" stroke="#52514e" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <text x="594" y="242" text-anchor="end" font-size="11" fill="#52514e">residual</text>
+  <path d="M680 224 C682 240 666 248 646 253" stroke="#52514e" stroke-width="2" stroke-dasharray="5 4" fill="none" marker-end="url(#arrow)"/>
+  <text x="686" y="246" font-size="11" fill="#52514e">feedback</text>
+  <!-- Prompt arrows -->
+  <path d="M150 200 C175 200 175 75 196 75" stroke="#52514e" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M150 215 C175 215 175 240 196 240" stroke="#52514e" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <!-- Outputs -->
+  <rect x="770" y="48" width="170" height="52" rx="8" fill="#ffffff" stroke="#52514e"/>
+  <text x="855" y="79" text-anchor="middle" font-size="13" fill="#0b0b0b">Clean answer</text>
+  <line x1="720" y1="75" x2="766" y2="75" stroke="#52514e" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="770" y="176" width="170" height="52" rx="8" fill="#ffffff" stroke="#52514e"/>
+  <text x="855" y="207" text-anchor="middle" font-size="13" fill="#0b0b0b">Fly answer</text>
+  <line x1="720" y1="202" x2="766" y2="202" stroke="#52514e" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="770" y="252" width="170" height="52" rx="8" fill="#ffffff" stroke="#52514e"/>
+  <text x="855" y="276" text-anchor="middle" font-size="13" fill="#0b0b0b">3D anatomy view</text>
+  <text x="855" y="294" text-anchor="middle" font-size="11" fill="#52514e">telemetry · recording</text>
+  <line x1="660" y1="278" x2="766" y2="278" stroke="#52514e" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="20" y="346" font-size="11" fill="#52514e">Reservoir state persists across turns and decays between prompts. Only the connectivity is biological; the dynamics are an engineered rate model.</text>
+</svg>

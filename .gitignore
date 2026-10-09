@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+.venv/
+build/
+dist/
+# Raw FlyWire downloads used by `liquidaion-fly prepare`
+data/raw/
+models/
+# Local runtime output: personal session recordings and inference debug logs
+results/debug/
+*.session.json
+liquidaion-session*.json

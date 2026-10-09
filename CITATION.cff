@@ -1,0 +1,48 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the archived release below. If you use the bundled connectome data, please also cite the FlyWire publications listed in the README."
+type: software
+title: "LiquidAion Neural Observatory"
+abstract: >-
+  Experimental research software that couples a frozen pretrained language model
+  (Qwen3-0.6B) bidirectionally to a sparse recurrent rate network whose connectivity
+  is a 512-neuron subset of the adult Drosophila melanogaster connectome (FlyWire FAFB,
+  materialization 783). It provides a desktop observatory with an anatomically registered
+  3D view, controlled same-prefix experiments (coupling, random-topology control,
+  persistent versus reset state), session recording and replay, and diagnostics for
+  context isolation and repetition.
+authors:
+  - given-names: Lexx
+    family-names: Xell
+    affiliation: Patternity
+version: 0.2.0
+date-released: "2026-10-09"
+license: MIT
+repository-code: "https://github.com/Patternity/LiquidAion-Neural-Observatory"
+url: "https://github.com/Patternity/LiquidAion-Neural-Observatory"
+keywords:
+  - large language models
+  - connectome
+  - Drosophila
+  - FlyWire
+  - reservoir computing
+  - activation steering
+  - computational neuroscience
+  - research software
+references:
+  - type: article
+    title: "Neuronal wiring diagram of an adult brain"
+    authors:
+      - family-names: Dorkenwald
+        given-names: Sven
+      - name: "FlyWire Consortium"
+    journal: Nature
+    year: 2024
+    doi: 10.1038/s41586-024-07558-y
+  - type: article
+    title: "Whole-brain annotation and multi-connectome cell typing of Drosophila"
+    authors:
+      - family-names: Schlegel
+        given-names: Philipp
+    journal: Nature
+    year: 2024
+    doi: 10.1038/s41586-024-07686-5

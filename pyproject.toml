@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "liquidaion-fly"
+version = "0.2.0"
+description = "Research software coupling a frozen Qwen3-0.6B transformer to a recurrent network built from authentic FlyWire Drosophila connectivity"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Lexx Xell" }]
+requires-python = ">=3.12"
+keywords = ["llm", "connectome", "drosophila", "flywire", "reservoir-computing", "activation-steering",
+            "computational-neuroscience", "research-software"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+dependencies = ["numpy>=2.0,<3", "scipy>=1.14,<2", "pandas>=2.2,<3", "torch==2.8.0", "transformers==4.56.2",
+                "matplotlib>=3.9,<4"]
+
+[project.optional-dependencies]
+desktop = ["PySide6>=6.8,<7", "pyvista>=0.45,<0.47", "pyvistaqt>=0.11,<0.12", "vtk>=9.5,<9.6"]
+test = ["pytest>=8,<10", "pillow>=10"]
+
+[project.urls]
+Homepage = "https://github.com/Patternity/LiquidAion-Neural-Observatory"
+Issues = "https://github.com/Patternity/LiquidAion-Neural-Observatory/issues"
+
+[project.scripts]
+liquidaion-fly = "liquidaion_fly.cli:main"
+liquidaion-observatory = "liquidaion_fly.observatory:main"
+liquidaion-attractor = "liquidaion_fly.attractor:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

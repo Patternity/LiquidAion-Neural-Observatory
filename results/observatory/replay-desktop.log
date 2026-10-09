@@ -1,0 +1,16 @@
+2026-10-09 09:00:53.909 (   8.014s) [    7F9F709EC740]vtkXOpenGLRenderWindow.:1458  WARN| bad X server connection. DISPLAY=
+{
+  "passed": true,
+  "errors": [],
+  "verified_indices": [
+    0,
+    40,
+    69,
+    138
+  ],
+  "snapshots": 139,
+  "model_loaded": false,
+  "final_conversations_match": true,
+  "exported_index": 138,
+  "png_integrity_verified": true
+}

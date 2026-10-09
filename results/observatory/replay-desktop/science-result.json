@@ -1,0 +1,27 @@
+{
+  "comparison": "retained_vs_reset",
+  "matched_prefix": true,
+  "matched_steps": 8,
+  "retained_state_rms": 0.057631474467507944,
+  "before_idle_state_rms": 0.14311609750444765,
+  "idle_steps": 10,
+  "prompt_a": "A friend helped me fix a bug.",
+  "prompt_b": "Write one short thank-you sentence.",
+  "metrics": {
+    "mean_kl_baseline_to_condition": 0.00010866323958454904,
+    "first_token_kl": 8.345117656576267e-05,
+    "logit_rms_difference": 0.03623327612876892,
+    "argmax_disagreement_fraction": 0.0
+  },
+  "forced_token_ids": [
+    13060,
+    498,
+    369,
+    697,
+    882,
+    323,
+    1824,
+    13
+  ],
+  "cancelled": false
+}

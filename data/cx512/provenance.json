@@ -1,0 +1,45 @@
+{
+  "dataset": "FlyWire FAFB",
+  "materialization": 783,
+  "retrieved_utc": "2026-10-09T00:03:22.764105+00:00",
+  "sources": [
+    {
+      "name": "classification.csv.gz",
+      "url": "https://storage.googleapis.com/flywire-data/codex/data/fafb/783/classification.csv.gz",
+      "sha256": "e946b552f4056dfc977707be0674609832c3f64332a22d69dc0d9615e7aae663",
+      "bytes": 934402
+    },
+    {
+      "name": "neurons.csv.gz",
+      "url": "https://storage.googleapis.com/flywire-data/codex/data/fafb/783/neurons.csv.gz",
+      "sha256": "6a6b3759e635f0f35a677d169052362131ec61d95f55919298b55c43fce4e719",
+      "bytes": 1679884
+    },
+    {
+      "name": "connections.csv.gz",
+      "url": "https://storage.googleapis.com/flywire-data/codex/data/fafb/783/connections.csv.gz",
+      "sha256": "d49dd692e59e153aa3c83f5257bfc0eff51247b86d7bb183386c6d1622c70fc9",
+      "bytes": 50289304
+    }
+  ],
+  "license": "CC BY-NC 4.0",
+  "license_source": "https://flywire.ai/guidelines",
+  "selection": "CX class; largest SCC; top weighted degree; largest induced SCC",
+  "requested_nodes": 512,
+  "candidate_nodes": 2878,
+  "candidate_largest_scc": 2525,
+  "nodes": 512,
+  "edges": 16731,
+  "synapses": 310999,
+  "strongly_connected": true,
+  "edge_sha256": "5c524dd9aca9557ab94ad04f36668e6a86d108c905f31d909b43cc916e5bae54",
+  "node_sha256": "62f91abd6f9da4a4f5f81f8307c2a4be0e894c8d95ad240b8cba63178f1a20f4",
+  "transformations": [
+    "aggregate neuropil rows per directed pair",
+    "induce selected nodes",
+    "remove all connections to omitted neurons"
+  ],
+  "weight_semantics": "Positive synapse counts; no neurotransmitter sign assignment",
+  "annotation_warning": "Codex annotations can change independently of materialization; hashes freeze this export",
+  "synapse_warning": "Materialization alone does not identify the synapse-prediction release; export hashes are authoritative"
+}

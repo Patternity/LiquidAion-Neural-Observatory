@@ -1,0 +1,2 @@
+{"status": "real_diagnostic_complete", "device": "cuda", "output": "results/observatory-cuda"}
+smoke exit 0

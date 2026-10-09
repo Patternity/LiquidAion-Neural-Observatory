@@ -1,0 +1,1 @@
+Observatory startup failed: CUDA is unavailable. Install a CUDA-enabled PyTorch build compatible with your NVIDIA driver. Use --cpu only for explicit CPU validation, or --replay for offline viewing.

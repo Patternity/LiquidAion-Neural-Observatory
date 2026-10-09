@@ -1,0 +1,72 @@
+{
+  "device": "cpu",
+  "renderer": "VTK",
+  "errors": [],
+  "generations": [
+    {
+      "clean": {
+        "text": "Hello, world!",
+        "seconds": 1.7496230529995955,
+        "tokens_per_second": 2.857758413406751,
+        "cache_reused": false,
+        "token_ids": [
+          9707,
+          11,
+          1879,
+          0,
+          151645
+        ]
+      },
+      "fly": {
+        "text": "Hello, world!",
+        "seconds": 1.9874829690006663,
+        "tokens_per_second": 2.51574482799924,
+        "cache_reused": false,
+        "token_ids": [
+          9707,
+          11,
+          1879,
+          0,
+          151645
+        ]
+      }
+    },
+    {
+      "clean": {
+        "text": "Goodbye!",
+        "seconds": 1.029057832000035,
+        "tokens_per_second": 3.8870507328298185,
+        "cache_reused": false,
+        "token_ids": [
+          15216,
+          28374,
+          0,
+          151645
+        ]
+      },
+      "fly": {
+        "text": "Goodbye!",
+        "seconds": 0.9214013800001339,
+        "tokens_per_second": 4.341213380860596,
+        "cache_reused": false,
+        "token_ids": [
+          15216,
+          28374,
+          0,
+          151645
+        ]
+      }
+    }
+  ],
+  "heartbeat_count": 133,
+  "initialization_seconds": 5.314282263000678,
+  "model_instances": 1,
+  "peak_state_rms": 0.14751697037305878,
+  "png_integrity_verified": true,
+  "idle_rms_before": 0.14751697037305878,
+  "idle_rms_after": 0.06664818627078034,
+  "reset_state_rms": 0.0,
+  "reset_max_alpha": 0,
+  "duration_seconds": 14.01777984399996,
+  "passed": true
+}

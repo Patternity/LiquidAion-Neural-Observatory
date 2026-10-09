@@ -1,0 +1,11 @@
+name: Research question or result
+description: Discuss a measurement, a control or an interpretation
+labels: [research]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question or observation
+      description: Include settings (strength, feedback, seed), hardware and the exact commands or recording used.
+    validations:
+      required: true

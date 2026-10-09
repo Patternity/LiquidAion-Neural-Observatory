@@ -1,0 +1,24 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Steps to reproduce, expected and actual behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Output of `python -m liquidaion_fly.cli inspect`, GPU model and driver, mode (GPU / --cpu / --replay).
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Terminal output. Do not paste private conversations; `--debug-log summary` contains no text.
+      render: text

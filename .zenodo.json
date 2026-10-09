@@ -1,0 +1,17 @@
+{
+  "title": "LiquidAion Neural Observatory",
+  "upload_type": "software",
+  "description": "<p>Experimental research software that couples a frozen pretrained language model (Qwen3-0.6B) bidirectionally to a sparse recurrent rate network whose connectivity is a 512-neuron subset of the adult <i>Drosophila melanogaster</i> connectome (FlyWire FAFB, materialization 783). Hidden states observed at decoder layer 6 drive the network. The network's state is decoded into a residual intervention at layer 14, and the modified activations feed back into the network. A PySide6 desktop observatory shows an unmodified (Clean) and a coupled (Fly) conversation next to the network's activity, drawn on registered FlyWire anatomy.</p><p>The release includes controlled same-prefix experiments (coupling, a random-topology control, and persistent versus reset state), session recording and offline replay, context-isolation regression tests, and an attractor diagnostic. The measurements show a reproducible causal pathway. They do not show cognition, a biologically faithful simulation, or an advantage of the biological topology over the random control.</p><p>Licensing: the original source code is MIT. The bundled FlyWire-derived data are CC BY-NC 4.0 (FlyWire Consortium; Dorkenwald et al. 2024, Schlegel et al. 2024). The bundled navis-flybrains meshes are GPL-3.0. Qwen3 weights are not included (Apache-2.0, downloaded separately).</p>",
+  "creators": [
+    {"name": "Xell, Lexx", "affiliation": "Patternity"}
+  ],
+  "license": "MIT",
+  "keywords": ["large language models", "connectome", "Drosophila", "FlyWire", "reservoir computing",
+               "activation steering", "computational neuroscience", "research software"],
+  "related_identifiers": [
+    {"identifier": "https://github.com/Patternity/LiquidAion-Neural-Observatory", "relation": "isSupplementTo", "resource_type": "software", "scheme": "url"},
+    {"identifier": "10.1038/s41586-024-07558-y", "relation": "references", "resource_type": "publication-article", "scheme": "doi"},
+    {"identifier": "10.1038/s41586-024-07686-5", "relation": "references", "resource_type": "publication-article", "scheme": "doi"}
+  ],
+  "notes": "Experimental research software, not a peer-reviewed publication. FlyWire data: https://flywire.ai/guidelines. Tested on Linux with an NVIDIA RTX 3070 Ti (PyTorch 2.8.0+cu128)."
+}

@@ -1,0 +1,19 @@
+{
+  "os": "Linux-6.18.44-x86_64-with-glibc2.39",
+  "python": "3.12.14",
+  "cpu_count": 9,
+  "cpu": "x86_64",
+  "ram_bytes": 10451460096,
+  "disk_free_bytes": 20801380352,
+  "nvidia_smi": null,
+  "torch_cuda_available": false,
+  "torch_cuda_version": null,
+  "packages": {
+    "torch": "2.8.0+cpu",
+    "transformers": "4.56.2",
+    "numpy": "2.3.5",
+    "scipy": "1.17.0",
+    "pandas": "2.2.3"
+  },
+  "peak_process_rss_bytes": 230612992
+}

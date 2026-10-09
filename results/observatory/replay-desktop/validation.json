@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "errors": [],
+  "verified_indices": [
+    0,
+    40,
+    69,
+    138
+  ],
+  "snapshots": 139,
+  "model_loaded": false,
+  "final_conversations_match": true,
+  "exported_index": 138,
+  "png_integrity_verified": true
+}
