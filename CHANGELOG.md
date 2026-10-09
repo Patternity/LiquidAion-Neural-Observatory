@@ -6,6 +6,20 @@ All notable changes to this project are documented here. Versions follow
 ## [Unreleased]
 
 ### Added
+- Live external injection into continuous generation.
+  - Operator text is tokenized as typed and teacher-forced into the stream at token
+    boundaries, with no role markers.
+  - Token provenance (AUTONOMOUS / EXTERNAL INJECTION / POST-INJECTION) is tracked by window
+    membership, colored in the GUI and exported.
+  - Interventions are recorded with stream positions and reproduce exactly from a schedule
+    (`--inject`, `--leak-at`).
+- Optional external neural cue: an extra input to the 16 `nt_type = DA` neurons, or a random
+  size-matched control, while injected tokens are processed.
+- Runtime reservoir leak-rate control in Continuous Generation and in a new RESERVOIR
+  DYNAMICS panel of the classic GUI.
+  - The state is kept and changes are recorded.
+  - The fingerprint includes the dynamics, so sessions restore their leak.
+- `scripts/injection_experiment.py` and `scripts/gui_acceptance_injection.py`.
 - Continuous sliding-window generation ("Infinite Nekrasov"). The model sees only the last N
   tokens; the reservoir persists across thousands of tokens.
   - Conditions: Clean, persistent Fly, periodically reset Fly, random topology.

@@ -239,3 +239,167 @@ two-layer steering was not tested.
   that, long-run comparisons are between different trajectories. The controlled measure is the
   same-suffix probe.
 - The throughput figures for sampled runs were measured while several runs shared the GPU.
+
+## Live intervention: injection, external neural cue and leak rate
+
+These features let an operator perturb a running stream. They add **no** system prompt, chat
+template, role token or instruction. The model cannot tell, from the text, that a token came
+from a human.
+
+### How injection modifies the stream
+
+Operator text is tokenized exactly as typed, with `tokenizer(text, add_special_tokens=False)`.
+Nothing is trimmed, prefixed or summarized. Note that a leading space is part of the text. The
+tokens are teacher-forced into the **same** token stream that the sliding window reads.
+
+1. The worker applies queued interventions only at a token boundary. The GUI thread never
+   touches the model or the reservoir: `ContinuousRun.inject()` and `request_leak()` only put
+   requests on thread-safe queues. A new injection starts only after the previous one has been
+   fully inserted.
+2. For each injected token, one forward pass runs over the current window, which processes
+   the newest token exactly as in autonomous generation. The sampled token is then replaced by
+   the injected one. No random number is drawn on forced steps.
+3. After the last injected token, autonomous generation resumes. The next forward pass
+   processes that token once, as it would any other. Every stream token is therefore processed
+   by exactly one forward pass, with one capture update and one feedback update. Nothing is
+   skipped and nothing is processed twice.
+4. The reservoir is never reset by an injection. Injected tokens do not count toward
+   `total_tokens`, which counts model-generated tokens.
+
+If the run is stopped, every unfinished intervention is recorded:
+
+| Status | Meaning |
+|---|---|
+| `partial_cancelled` | Insertion had started; the count of inserted tokens is kept. |
+| `not_inserted_cancelled` | The injection was still queued. |
+| `scheduled_injection_not_reached` | A scheduled injection whose position was never reached. |
+
+### Provenance categories (display and telemetry only)
+
+| Category | Definition |
+|---|---|
+| `autonomous` | A model token generated from a window that contains no injected token. |
+| `external` | An injected token. |
+| `post_injection` | A model token generated from a window (the actual model input) that contains at least one injected token. |
+
+Window membership is tracked per position (`window_sources`). The category is decided by token
+counts, not by time or by what the text means. The first model token generated after the last
+injected token has been evicted is `autonomous` again. That eviction is recorded as the event
+`injection_left_window`, together with its stream position and a full state snapshot.
+Consecutive or overlapping injections are handled per injection id.
+
+The GUI colors the chronological text:
+
+- grey — autonomous;
+- orange — external injection;
+- blue — post-injection.
+
+The colors never enter the model input.
+
+### External neural cue (optional)
+
+- **Target.** The 16 nodes of `data/cx512/nodes.csv` annotated `nt_type = DA` are selected by
+  row. Their root IDs are recorded, and indices equal graph order because `load_graph` builds
+  the graph in `nodes.csv` order. The control target is 16 non-DA nodes drawn with seed 42.
+  The graph and its edges are unchanged.
+- **Mechanism.** The cue applies while the newest window token is an injected one, that is,
+  while an injected token is being processed. It adds `cue_strength` to the forcing of those
+  neurons in the capture update:
+
+  ```text
+  x ← (1 − leak)·x + leak·tanh(W·x + input_strength·U·features + cue)
+  ```
+
+  It is an input to the recurrent dynamics. It never overwrites the state, and it stops
+  immediately when autonomous tokens are processed again. `cue_strength = 0` and Off are
+  bitwise identical. The default 0.5 is about 1.6× the measured per-neuron standard deviation of
+  the linguistic forcing (0.32), so it is of the same order and does not saturate tanh.
+- **What it is not.** It is not dopamine release or a reward signal. The FlyWire
+  neurotransmitter labels are predictions (confidence 0.41–0.73 for these 16 nodes), and the
+  model has no synaptic signs, neuromodulation or plasticity. The cue is a physically
+  distinguishable, anatomically motivated input whose consequences can be measured.
+
+### Leak rate
+
+The leak `dt/tau` of the update equation can be set:
+
+- at start, via `leak_rate` / `--leak`;
+- live, with the slider and spin box (logarithmic, 0.005–0.5) in the Continuous Generation
+  window and in the main window's **RESERVOIR DYNAMICS** panel.
+
+A change takes effect at the next update and keeps the current state:
+
+- **smaller** leak: slower state change and potentially longer persistence;
+- **larger** leak: faster response to the current input.
+
+Recurrence means the network's real decay is not set by this coefficient alone, so no
+"memory duration" is displayed. Each change is recorded with its old value, new value, stream
+position and simulation time. The reservoir fingerprint includes the dynamics, so a recorded
+state is never restored under other dynamics:
+
+- a classic session restores its own leak;
+- recordings without `leak_rate` restore at 0.2;
+- a state recorded under a mismatching leak is rejected.
+
+Changing the leak in the classic GUI discards the Fly KV cache.
+
+### Time base
+
+| Clock | Meaning |
+|---|---|
+| Reservoir updates | Two per processed token (capture + feedback); one per idle tick. |
+| Simulation time | Updates × `dt` (0.2). Dimensionless, not seconds. |
+| Wall time | Depends on GPU speed. It never enters the dynamics: the classic idle timer fires every 250 ms, but each tick is exactly one update, so experiments do not depend on wall-clock speed. |
+
+The selected-neuron plot shows telemetry samples, which are not uniform in time; the GUI says
+so under the plot.
+
+### Reproducing interventions
+
+`summary.json` records each injection's text and `start_position`, and each `leak_changed`
+event's position. Passing them back as `injections=((position, text), …)` and
+`leak_schedule=((position, leak), …)`, or as `--inject POSITION:TEXT` and
+`--leak-at POSITION:LEAK`, reproduces the run exactly.
+
+This was verified for the two GUI acceptance sessions: 723 identical stream tokens and a
+bitwise-identical final reservoir state, one of them with a live leak change. Baseline
+compatibility also holds:
+
+- with leak 0.2, cue off and no injections, the published continuous runs (greedy smoke and
+  sampled seed 42) reproduce token for token;
+- the golden «ты немножко муха?» test passes unchanged on CUDA and CPU.
+
+### Result: identical injection with and without the DA cue
+
+Setup:
+
+- `scripts/injection_experiment.py`; output in `results/injection/da-cue-0.5/`;
+- sampled stream (T=1.0, top-p 0.95, seed 42), window 128;
+- « Из-за деревьев неожиданно появился огромный зелёный мамонт.» (23 tokens) inserted at
+  stream position 250;
+- cue strength 0.5.
+
+Before the injection, the three runs are identical by construction.
+
+| | cue off | DA cue | random 16 (control) |
+|---|---|---|---|
+| Mean signed DA-group state before → during injection | −0.13 → −0.13 | −0.13 → **+0.07** (peak +0.15) | −0.13 → −0.12 |
+| DA-group state 10–20 tokens after the cue stopped | back to the cue-off course | back to the cue-off course | — |
+| State difference from cue off at end of injection (L2, whole / DA group) | 0 / 0 | 1.14 / 0.96 | 1.11 / 0.07 |
+| KL on identical text, state at end of injection vs cue-off state | 0 | 1.3e-5 | 1.2e-5 |
+| Same, at the moment the injection left the window (position 401) | 0 | 2.3e-5 | 2.7e-5 |
+| First token that differs from cue off | — | 308 | 338 |
+
+The cue is a real, targeted input. It drives the measured DA-group activity across zero, while
+the size-matched random group leaves the DA neurons almost untouched. After the external text
+leaves Qwen's window, state differences remain (L2 ≈ 2.7). By then the generated text has
+diverged too, so part of that difference comes from different tokens.
+
+The **direct effect on next-token distributions on identical text** is small (KL ≈ 1–3e-5)
+and the same for the DA and random groups at this strength. **No DA-specific effect on the
+model output is shown.** One injection, one seed, one strength: these are observations, not
+evidence of memory, understanding or learning.
+
+The GUI acceptance run (`scripts/gui_acceptance_injection.py`, 22/22 checks) used the real
+model and widgets. The DA group moved from −0.125 before to +0.097 on average during the cue.
+In classic mode, the idle RMS decay factor per update was 0.952 at leak 0.2 and 0.988 at 0.02.

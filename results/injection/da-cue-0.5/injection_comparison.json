@@ -1,0 +1,214 @@
+{
+  "text": " Из-за деревьев неожиданно появился огромный зелёный мамонт.",
+  "position": 250,
+  "cue_strength": 0.5,
+  "injected_tokens": 23,
+  "end_position": 273,
+  "left_window_position": 401,
+  "conditions": {
+    "cue_off": {
+      "cue_neurons": 0,
+      "cue_applied_positions": [],
+      "first_token_divergence_from_cue_off": null,
+      "phases": {
+        "before": {
+          "tokens": 32,
+          "state_rms": 0.16709905718803753,
+          "da_mean": -0.13198291670783402,
+          "da_abs_mean": 0.14199553033297693
+        },
+        "during": {
+          "tokens": 23,
+          "state_rms": 0.17316786884682278,
+          "da_mean": -0.1279766554603879,
+          "da_abs_mean": 0.1462758175497388
+        },
+        "post_injection": {
+          "tokens": 128,
+          "state_rms": 0.17248113452391148,
+          "da_mean": -0.11345425622806472,
+          "da_abs_mean": 0.12880085840792763
+        },
+        "after_left_window": {
+          "tokens": 32,
+          "state_rms": 0.16831610698860366,
+          "da_mean": -0.10282164169104535,
+          "da_abs_mean": 0.11617484159204756
+        }
+      },
+      "left_window_position": 401,
+      "end_of_injection": {
+        "state_l2_difference_from_cue_off": 0.0,
+        "da_group_l2_difference": 0.0,
+        "logits_vs_cue_off_state_same_text": {
+          "mean_kl_baseline_to_condition": 0.0,
+          "first_token_kl": 0.0,
+          "logit_rms_difference": 0.0,
+          "argmax_disagreement_fraction": 0.0
+        }
+      },
+      "left_window": {
+        "state_l2_difference_from_cue_off": 0.0,
+        "da_group_l2_difference": 0.0,
+        "logits_vs_cue_off_state_same_text": {
+          "mean_kl_baseline_to_condition": 0.0,
+          "first_token_kl": 0.0,
+          "logit_rms_difference": 0.0,
+          "argmax_disagreement_fraction": 0.0
+        }
+      }
+    },
+    "cue_da": {
+      "cue_neurons": 16,
+      "cue_applied_positions": [
+        251,
+        252,
+        253,
+        254,
+        255,
+        256,
+        257,
+        258,
+        259,
+        260,
+        261,
+        262,
+        263,
+        264,
+        265,
+        266,
+        267,
+        268,
+        269,
+        270,
+        271,
+        272,
+        273
+      ],
+      "first_token_divergence_from_cue_off": 308,
+      "phases": {
+        "before": {
+          "tokens": 32,
+          "state_rms": 0.16709905718803753,
+          "da_mean": -0.13198291670783402,
+          "da_abs_mean": 0.14199553033297693
+        },
+        "during": {
+          "tokens": 23,
+          "state_rms": 0.17273152962808896,
+          "da_mean": 0.07334076389588018,
+          "da_abs_mean": 0.12922048399707978
+        },
+        "post_injection": {
+          "tokens": 128,
+          "state_rms": 0.17119256008625044,
+          "da_mean": -0.11102213983650314,
+          "da_abs_mean": 0.13044669286744126
+        },
+        "after_left_window": {
+          "tokens": 32,
+          "state_rms": 0.16201260419941615,
+          "da_mean": -0.14430965232703846,
+          "da_abs_mean": 0.1513388039475441
+        }
+      },
+      "left_window_position": 401,
+      "end_of_injection": {
+        "state_l2_difference_from_cue_off": 1.1364532327588388,
+        "da_group_l2_difference": 0.9592005054497849,
+        "logits_vs_cue_off_state_same_text": {
+          "mean_kl_baseline_to_condition": 1.2784968412468636e-05,
+          "first_token_kl": 2.215948407255884e-05,
+          "logit_rms_difference": 0.009784489870071411,
+          "argmax_disagreement_fraction": 0.0625
+        }
+      },
+      "left_window": {
+        "state_l2_difference_from_cue_off": 2.6702776252530054,
+        "da_group_l2_difference": 0.5443492573207747,
+        "logits_vs_cue_off_state_same_text": {
+          "mean_kl_baseline_to_condition": 2.290591421434901e-05,
+          "first_token_kl": 3.867284730075691e-05,
+          "logit_rms_difference": 0.014166414737701416,
+          "argmax_disagreement_fraction": 0.0
+        }
+      }
+    },
+    "cue_random": {
+      "cue_neurons": 16,
+      "cue_applied_positions": [
+        251,
+        252,
+        253,
+        254,
+        255,
+        256,
+        257,
+        258,
+        259,
+        260,
+        261,
+        262,
+        263,
+        264,
+        265,
+        266,
+        267,
+        268,
+        269,
+        270,
+        271,
+        272,
+        273
+      ],
+      "first_token_divergence_from_cue_off": 338,
+      "phases": {
+        "before": {
+          "tokens": 32,
+          "state_rms": 0.16709905718803753,
+          "da_mean": -0.13198291670783402,
+          "da_abs_mean": 0.14199553033297693
+        },
+        "during": {
+          "tokens": 23,
+          "state_rms": 0.17395268261049787,
+          "da_mean": -0.11876399318763911,
+          "da_abs_mean": 0.1400109246359994
+        },
+        "post_injection": {
+          "tokens": 128,
+          "state_rms": 0.17421057932427805,
+          "da_mean": -0.12582534154370387,
+          "da_abs_mean": 0.13746697089438548
+        },
+        "after_left_window": {
+          "tokens": 32,
+          "state_rms": 0.166623620573832,
+          "da_mean": -0.13134646650501602,
+          "da_abs_mean": 0.14385183455073167
+        }
+      },
+      "left_window_position": 401,
+      "end_of_injection": {
+        "state_l2_difference_from_cue_off": 1.1128383093338339,
+        "da_group_l2_difference": 0.07289670564069956,
+        "logits_vs_cue_off_state_same_text": {
+          "mean_kl_baseline_to_condition": 1.2264184721164452e-05,
+          "first_token_kl": 1.738102078625164e-05,
+          "logit_rms_difference": 0.009671994484961033,
+          "argmax_disagreement_fraction": 0.0
+        }
+      },
+      "left_window": {
+        "state_l2_difference_from_cue_off": 2.723833816596008,
+        "da_group_l2_difference": 0.4302203212615172,
+        "logits_vs_cue_off_state_same_text": {
+          "mean_kl_baseline_to_condition": 2.6607158797556462e-05,
+          "first_token_kl": 2.6339682455646363e-05,
+          "logit_rms_difference": 0.014237136580049992,
+          "argmax_disagreement_fraction": 0.0
+        }
+      }
+    }
+  }
+}

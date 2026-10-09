@@ -27,7 +27,7 @@ class TestTokenizer:
 
 def write_graph(directory):
     directory.mkdir(parents=True)
-    (directory / "nodes.csv").write_text("root_id\n1\n2\n3\n")
+    (directory / "nodes.csv").write_text("root_id,nt_type\n1,ACH\n2,DA\n3,GABA\n")
     (directory / "edges.csv").write_text("pre_root_id,post_root_id,syn_count\n1,2,2\n2,3,3\n3,1,4\n")
     return directory
 

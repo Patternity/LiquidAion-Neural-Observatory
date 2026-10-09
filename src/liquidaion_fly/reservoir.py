@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 
 import numpy as np
@@ -42,17 +42,41 @@ class Reservoir:
         self.input = np.random.default_rng(seed).normal(0, 1 / np.sqrt(features), (graph.shape[0], features))
         self.state = np.zeros(graph.shape[0])
         self.time = 0.0
+        self._update_fingerprint()
+
+    def _update_fingerprint(self) -> None:
+        # Covers graph, input projection and dynamics, so a state never restores under other dynamics.
         self.fingerprint = hashlib.sha256(
             self.w.data.tobytes() + self.w.indices.tobytes() + self.w.indptr.tobytes()
-            + self.input.tobytes() + json.dumps(asdict(dynamics), sort_keys=True).encode()).hexdigest()
+            + self.input.tobytes() + json.dumps(asdict(self.dynamics), sort_keys=True).encode()).hexdigest()
 
-    def advance(self, features: np.ndarray | None = None, steps: int = 1) -> np.ndarray:
+    @property
+    def leak(self) -> float:
+        return self.dynamics.dt / self.dynamics.tau
+
+    def set_leak(self, leak: float) -> None:
+        """Change the leak dt/tau of the update equation in place, keeping the current state and dt."""
+        if not np.isfinite(leak) or not 0 < leak <= 1:
+            raise ValueError("Leak rate must lie in (0, 1]")
+        if leak == self.leak:
+            return
+        self.dynamics = replace(self.dynamics, tau=self.dynamics.dt / leak)
+        self._update_fingerprint()
+
+    def advance(self, features: np.ndarray | None = None, steps: int = 1,
+                extra: np.ndarray | None = None) -> np.ndarray:
+        """Leaky tanh update; `extra` is an additional per-neuron input added to the forcing."""
         if steps < 0 or not isinstance(steps, int):
             raise ValueError("Steps must be a nonnegative integer")
         u = np.zeros(self.input.shape[1]) if features is None else np.asarray(features, dtype=float)
         if u.shape != (self.input.shape[1],) or not np.isfinite(u).all():
             raise ValueError("Invalid input features")
         forcing = self.dynamics.input_strength * (self.input @ u)
+        if extra is not None:
+            extra = np.asarray(extra, dtype=float)
+            if extra.shape != self.state.shape or not np.isfinite(extra).all():
+                raise ValueError("Invalid extra reservoir input")
+            forcing = forcing + extra
         leak = self.dynamics.dt / self.dynamics.tau
         for _ in range(steps):
             self.state = (1 - leak) * self.state + leak * np.tanh(self.w @ self.state + forcing)

@@ -51,6 +51,8 @@ class ObservatoryConfig:
     seed: int = 42
     threads: int = 4
     revision: str | None = None
+    # Reservoir leak dt/tau of the update x <- (1-leak)x + leak*tanh(...); 0.2 is the published baseline.
+    leak_rate: float = 0.2
 
     def validate(self) -> None:
         if self.max_context_tokens < 16 or not 1 <= self.max_new_tokens < self.max_context_tokens:
@@ -63,6 +65,8 @@ class ObservatoryConfig:
             raise ValueError("Features and threads must be positive")
         if any(not np.isfinite(x) or not 0 <= x <= 1 for x in (self.strength, self.feedback)):
             raise ValueError("Strength and feedback must lie in [0, 1]")
+        if not np.isfinite(self.leak_rate) or not 0 < self.leak_rate <= 1:
+            raise ValueError("Leak rate must lie in (0, 1]")
 
 
 @dataclass
@@ -130,7 +134,7 @@ class ObservatoryEngine:
         self._lock = RLock()
         self.graph_dir = Path(graph_dir)
         self.graph, self.node_ids = load_graph(self.graph_dir)
-        self.reservoir = Reservoir(self.graph, features=self.config.features, seed=self.config.seed)
+        self.reservoir = self._new_reservoir(self.graph)
         # This is the sole LocalLLM and model instance, shared across all conditions.
         self.llm = LocalLLM(str(model_path), device=str(resolved), revision=self.config.revision,
                             threads=self.config.threads)
@@ -173,6 +177,12 @@ class ObservatoryEngine:
                                 self.config.capture_layer, self.config.steer_layer,
                                 strength, feedback, mode=mode, seed=self.config.seed)
 
+    def _new_reservoir(self, graph: Any) -> Reservoir:
+        """A zero-state reservoir with the engine's projections and current leak rate."""
+        reservoir = Reservoir(graph, features=self.config.features, seed=self.config.seed)
+        reservoir.set_leak(self.config.leak_rate)
+        return reservoir
+
     def _check_model_context(self, config: ObservatoryConfig) -> None:
         if self.model_context_limit and config.max_context_tokens > self.model_context_limit:
             raise ValueError(f"Context of {config.max_context_tokens} tokens exceeds the model's "
@@ -214,17 +224,26 @@ class ObservatoryEngine:
     def configure(self, **settings: Any) -> dict:
         with self._lock:
             mutable = {"strength", "feedback", "steering_enabled", "feedback_enabled", "max_new_tokens",
-                       "max_context_tokens"}
+                       "max_context_tokens", "leak_rate"}
             if set(settings) - mutable:
-                raise ValueError("Only runtime steering, feedback, and context settings may be configured")
+                raise ValueError("Only runtime steering, feedback, leak and context settings may be configured")
             candidate = ObservatoryConfig(**{**asdict(self.config), **settings})
             candidate.validate()
             self._check_model_context(candidate)
             context_changed = candidate.max_context_tokens != self.config.max_context_tokens
+            old_leak = self.reservoir.leak
+            leak_changed = candidate.leak_rate != old_leak
             self.config = candidate
+            if leak_changed:
+                # The live state is kept; only the update equation changes from the next update on.
+                self.reservoir.set_leak(candidate.leak_rate)
+                self.recording.append("leak_changed", old=old_leak, new=self.reservoir.leak,
+                                      simulation_time=self.reservoir.time,
+                                      simulation_step=int(round(self.reservoir.time / self.reservoir.dynamics.dt)),
+                                      fingerprint=self.reservoir.fingerprint)
             self.coupling.strength = candidate.strength if candidate.steering_enabled else 0.0
             self.coupling.feedback = candidate.feedback if candidate.feedback_enabled else 0.0
-            if set(settings) & {"strength", "feedback", "steering_enabled", "feedback_enabled"}:
+            if set(settings) & {"strength", "feedback", "steering_enabled", "feedback_enabled"} or leak_changed:
                 self.sessions["fly"].cache = self.sessions["fly"].cached_ids = None
             if context_changed:
                 for session in self.sessions.values():
@@ -568,7 +587,7 @@ class ObservatoryEngine:
             initial_time = self.reservoir.time
             def condition(random: bool = False):
                 graph = random_control(self.graph, self.config.seed) if random else self.graph
-                reservoir = Reservoir(graph, features=self.config.features, seed=self.config.seed)
+                reservoir = self._new_reservoir(graph)
                 reservoir.state = initial.copy()
                 reservoir.time = initial_time
                 return self._coupling(reservoir, "random" if random else "fly")
@@ -627,7 +646,7 @@ class ObservatoryEngine:
                     coupling = None
                     if label != "clean":
                         graph = random_control(self.graph, self.config.seed) if label == "random" else self.graph
-                        reservoir = Reservoir(graph, features=self.config.features, seed=self.config.seed)
+                        reservoir = self._new_reservoir(graph)
                         reservoir.state = initial.copy()
                         reservoir.time = initial_time
                         coupling = self._coupling(reservoir, label)
@@ -671,7 +690,7 @@ class ObservatoryEngine:
                 raise ValueError("Scientific token limit is outside the context budget")
             # Drive a temporary reservoir with a first prompt, then compare retained and
             # reset states on an identical second-prompt token path. Live chats stay intact.
-            temp = Reservoir(self.graph, features=self.config.features, seed=self.config.seed)
+            temp = self._new_reservoir(self.graph)
             coupling = self._coupling(temp)
             cancel = cancel_event if cancel_event is not None else Event()
             self._generate("fly_warmup", prompt_a, max_tokens, cancel, None, on_telemetry,
@@ -722,8 +741,12 @@ class ObservatoryEngine:
                 if replay.settings.get(key) != getattr(self.config, key):
                     raise ValueError(f"Recording adapter setting {key} does not match this engine")
             state = np.asarray(replay.state["values"], dtype=float)
-            if replay.state["fingerprint"] != self.reservoir.fingerprint or state.shape != self.reservoir.state.shape:
-                raise ValueError("Recording reservoir does not match this engine")
+            # Recordings made before leak control used the 0.2 baseline.
+            leak = float(replay.settings.get("leak_rate", 0.2))
+            expected = Reservoir(self.graph, features=self.config.features, seed=self.config.seed)
+            expected.set_leak(leak)
+            if replay.state["fingerprint"] != expected.fingerprint or state.shape != self.reservoir.state.shape:
+                raise ValueError("Recording reservoir (graph, projections or dynamics) does not match this engine")
             if not np.isfinite(state).all() or np.max(np.abs(state)) > 1 + 1e-9:
                 raise ValueError("Recording contains invalid reservoir state")
             simulation_time = float(replay.state["simulation_time"])
@@ -731,7 +754,7 @@ class ObservatoryEngine:
                 raise ValueError("Recording contains invalid simulation time")
             mutable = {"strength", "feedback", "steering_enabled", "feedback_enabled",
                        "max_new_tokens", "max_context_tokens"}
-            self.configure(**{key: replay.settings[key] for key in mutable})
+            self.configure(**{key: replay.settings[key] for key in mutable}, leak_rate=leak)
             self.reservoir.state = state.copy()
             self.reservoir.time = simulation_time
             self.sessions = {name: ChatSession(replay.messages[name]) for name in ("clean", "fly")}

@@ -367,8 +367,80 @@ def test_worker_runs_continuous_condition_and_streams(app, monkeypatch, tmp_path
                                   "prompt_policy": "raw", "output": str(tmp_path / "run")})
     command, summary = finished[-1]
     assert command == "continuous" and summary["generated_tokens"] == 20
-    assert "".join(update["text"] for update in updates) == engine.llm.tokenizer.decode(
+    streamed = "".join(text for update in updates for text, _ in update["segments"])
+    assert streamed == engine.llm.tokenizer.decode(
         json.loads((tmp_path / "run" / "token_ids.json").read_text())["generated"])
+    assert {category for update in updates for _, category in update["segments"]} == {"autonomous"}
     assert any(snapshot.get("branch") == "continuous" and len(snapshot["state"]) == 3 for snapshot in snapshots)
     assert (tmp_path / "run" / "telemetry.jsonl").exists()
+    shiboken6.delete(worker)
+
+
+def test_classic_leak_control_configures_the_engine(window):
+    calls = []
+    window.command.connect(lambda command, payload: calls.append((command, payload)))
+    assert window.leak.value() == 0.2
+    window.leak.spin.setValue(0.05)
+    assert calls[-1] == ("configure", {"leak_rate": 0.05})
+    window.leak.slider.setValue(window.leak.to_slider(0.5))
+    assert calls[-1] == ("configure", {"leak_rate": 0.5})
+    window.on_finished("restore_session", {"settings": {"leak_rate": 0.01, "max_context_tokens": 4096,
+                                                        "max_new_tokens": 512}})
+    assert window.leak.value() == 0.01
+
+
+def test_continuous_dialog_injection_cue_and_leak_controls(window, tmp_path):
+    calls, injected, leaks = [], [], []
+    window.command.connect(lambda command, payload: calls.append((command, payload)))
+    window.open_continuous()
+    dialog = window.continuous_dialog
+    dialog.output_root = tmp_path
+    dialog.inject_requested.disconnect()
+    dialog.leak_requested.disconnect()
+    dialog.inject_requested.connect(injected.append)
+    dialog.leak_requested.connect(leaks.append)
+    dialog.cue.setCurrentIndex(dialog.cue.findData("da"))
+    assert dialog.cue_info.text().startswith("16 neurons selected")
+    assert not dialog.inject_button.isEnabled()
+    dialog.request_start()
+    payload = calls[-1][1]
+    assert payload["cue_target"] == "da" and payload["cue_strength"] == 0.5 and payload["leak_rate"] == 0.2
+    assert dialog.inject_button.isEnabled()
+    dialog.inject_text.setText(" Из-за деревьев появился мамонт.")
+    dialog.request_inject()
+    assert injected == [" Из-за деревьев появился мамонт."], "Injected text is sent exactly as typed"
+    dialog.on_injection_queued(1, injected[0])
+    assert "#1 pending" in dialog.inject_state.text()
+    dialog.leak.spin.setValue(0.02)
+    assert leaks == [0.02]
+    dialog.on_progress({"step": 5, "position": 9, "total": 256, "tokens_per_second": 30.0, "window_len": 64,
+                        "state_rms": 0.1, "da_abs_mean": 0.05, "category": "post_injection", "leak": 0.02,
+                        "segments": [(" автономно", "autonomous"), (" мамонт", "external"), (" дальше", "post_injection")],
+                        "rms": [(i, 0.1, 0.05, "external" if i == 3 else "autonomous") for i in range(10)],
+                        "injections": [{"id": 1, "status": "inserted", "inserted": 7, "left_window_position": None}]})
+    html = dialog.text.toHtml()
+    assert "#f0a35e" in html and "#6fa8ff" in html and "#c9d3e3" in html
+    assert dialog.text.toPlainText().endswith(" автономно мамонт дальше")
+    assert "#1 inserted · in window" in dialog.inject_state.text() and "POST-INJECTION" in dialog.progress.text()
+    assert dialog.plot.external == [3]
+
+
+def test_dialog_text_matches_exported_run_text(window, monkeypatch, tmp_path):
+    from conftest import build_engine
+    from liquidaion_fly.continuous import load_run
+    engine = build_engine(monkeypatch, tmp_path / "engine")
+    worker = EngineWorker(ObservatoryConfig(), "unused", "unused")
+    worker.engine = engine
+    window.open_continuous()
+    dialog = window.continuous_dialog
+    worker.continuous_progress.connect(dialog.on_progress)
+    payload = {"seed_text": "Once", "window": 8, "total_tokens": 40, "condition": "fly", "reset_interval": None,
+               "strength": 0.25, "feedback": 0.25, "eos_policy": "stop", "prompt_policy": "raw", "decoding": "sample",
+               "temperature": 0.8, "top_p": 0.9, "sampling_seed": 42, "leak_rate": 0.2, "cue_target": "da",
+               "cue_strength": 0.5, "injections": ((10, "Hi!"),), "output": str(tmp_path / "run")}
+    dialog.text.clear()
+    dialog._append("Once", "autonomous")
+    worker.execute("continuous", payload)
+    saved = load_run(tmp_path / "run")
+    assert dialog.text.toPlainText() == saved["text"], (repr(dialog.text.toPlainText()[-60:]), repr(saved["text"][-60:]))
     shiboken6.delete(worker)

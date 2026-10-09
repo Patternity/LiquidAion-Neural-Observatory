@@ -1,0 +1,85 @@
+{
+  "condition": "fly",
+  "reset_interval": null,
+  "stop_reason": "total_tokens",
+  "generated_tokens": 600,
+  "seconds": 18.718429770000512,
+  "tokens_per_second": 32.053970732181966,
+  "window": 128,
+  "max_window_seen": 128,
+  "window_shifts": 485,
+  "forward_calls": 623,
+  "reservoir_advances": 1246,
+  "resets": [],
+  "eos_suppressed": [],
+  "peak_gpu_allocated_bytes": 1241089024,
+  "probes": [],
+  "stream_tokens": 623,
+  "external_tokens": 23,
+  "injections": [
+    {
+      "id": 1,
+      "text": " Из-за деревьев неожиданно появился огромный зелёный мамонт.",
+      "token_ids": [
+        129977,
+        12,
+        126213,
+        134818,
+        136263,
+        18658,
+        21259,
+        47162,
+        7336,
+        13685,
+        17686,
+        126478,
+        130143,
+        127776,
+        12228,
+        33513,
+        10885,
+        12121,
+        44022,
+        33513,
+        141617,
+        96241,
+        13
+      ],
+      "origin": "schedule",
+      "start_position": 250,
+      "start_step": 250,
+      "inserted": 23,
+      "end_position": 273,
+      "left_window_position": 401,
+      "status": "inserted"
+    }
+  ],
+  "events": [
+    {
+      "type": "injection_started",
+      "position": 250,
+      "step": 250,
+      "simulation_time": 100.00000000000088,
+      "injection_id": 1,
+      "tokens": 23,
+      "origin": "schedule"
+    },
+    {
+      "type": "injection_completed",
+      "position": 273,
+      "step": 250,
+      "simulation_time": 109.20000000000101,
+      "injection_id": 1,
+      "tokens": 23
+    },
+    {
+      "type": "injection_left_window",
+      "position": 401,
+      "step": 378,
+      "simulation_time": 160.39999999999944,
+      "injection_id": 1
+    }
+  ],
+  "final_leak": 0.2,
+  "final_state_rms": 0.22215310045633235
+}

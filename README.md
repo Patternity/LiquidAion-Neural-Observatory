@@ -180,6 +180,7 @@ see different contexts.
 | **Save session** / **Open replay** / **Restore session** | Save the recording (states, messages, settings) as JSON; replay it offline; or restore its histories and state into a live model. |
 | **Export dashboard** | Writes a screenshot, the anatomy image, telemetry, conversations and experiment results. |
 | **Pause view** | Freezes rendering only. The dynamics keep running. |
+| **RESERVOIR DYNAMICS · Leak rate** | Leak dt/tau of the reservoir update (baseline 0.200, range 0.005–0.5). It changes the live equation from the next update and keeps the state. Smaller: slower change and potentially longer persistence. Larger: faster response. |
 | **Run controlled comparison** / **A · B · C** | Run the experiments below on temporary copies. The live chats and state are not affected. |
 
 Each answer reports a stop reason:
@@ -302,7 +303,17 @@ PYTHONPATH=src .venv/bin/python -m liquidaion_fly.continuous --output results/co
     --decoding sample --temperature 1.0 --top-p 0.95 --eos suppress
 ```
 
-In the GUI: **EXPERIMENTS → Continuous generation · sliding window…**
+In the GUI: **EXPERIMENTS → Continuous generation · sliding window…** While a run is active,
+the operator can:
+
+- **Inject** text into the running token stream. It is tokenized as typed, with no role
+  markers. Injected text is shown orange, and model tokens generated while it is still in the
+  window are shown blue.
+- Add an optional **External neural cue**: an extra input to the 16 DA-annotated neurons while
+  injected tokens are processed. A random size-matched group is available as a control.
+- Change the **leak rate**.
+
+See "Live intervention" in [docs/CONTINUOUS_GENERATION.md](docs/CONTINUOUS_GENERATION.md).
 
 Findings so far:
 

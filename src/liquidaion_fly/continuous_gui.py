@@ -1,88 +1,175 @@
-"""Compact control window for continuous sliding-window generation ("Infinite Nekrasov")."""
+"""Control window for continuous sliding-window generation ("Infinite Nekrasov").
+
+Besides run parameters it offers live operator injection, an optional external neural cue,
+and a runtime leak-rate control. Every control acts on the running system through the
+engine worker; the text colors only display recorded token provenance and are never part
+of the model input.
+"""
 from __future__ import annotations
 
+import math
 import shutil
 import time
 from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor, QPainter, QPen, QTextCursor
+from PySide6.QtGui import QColor, QPainter, QPen, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import (QComboBox, QDialog, QDoubleSpinBox, QFileDialog, QFormLayout, QHBoxLayout, QLabel,
-                               QLineEdit, QPlainTextEdit, QPushButton, QSpinBox, QVBoxLayout, QWidget)
+                               QLineEdit, QPushButton, QSlider, QSpinBox, QTextEdit, QVBoxLayout, QWidget)
 
-from .continuous import CONDITIONS, DEFAULT_INSTRUCTION, DEFAULT_SEED_TEXT, PROMPT_POLICIES
+from .continuous import (BASELINE_LEAK, CONDITIONS, DEFAULT_INSTRUCTION, DEFAULT_SEED_TEXT, PROMPT_POLICIES,
+                         cue_neuron_indices)
 
 ROOT = Path(__file__).resolve().parents[2]
 WINDOW_PRESETS = (64, 128, 256, 512)
 LENGTH_PRESETS = (256, 1000, 5000, 10000)
-PLOT_CAPACITY = 20000
+PLOT_CAPACITY = 40000
+LEAK_MIN, LEAK_MAX = 0.005, 0.5
+CATEGORY_COLORS = {"autonomous": "#c9d3e3", "external": "#f0a35e", "post_injection": "#6fa8ff"}
+CATEGORY_LABELS = {"autonomous": "AUTONOMOUS", "external": "EXTERNAL INJECTION", "post_injection": "POST-INJECTION"}
+
+
+class LeakControl(QWidget):
+    """Logarithmic slider plus a precise spin box for the reservoir leak dt/tau."""
+    committed = Signal(float)
+
+    def __init__(self, value=BASELINE_LEAK, parent=None):
+        super().__init__(parent)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.slider = QSlider(Qt.Horizontal)
+        self.slider.setRange(0, 1000)
+        self.spin = QDoubleSpinBox()
+        self.spin.setDecimals(3)
+        self.spin.setRange(LEAK_MIN, LEAK_MAX)
+        self.spin.setSingleStep(0.005)
+        self.spin.setPrefix("Leak rate: ")
+        self.spin.setToolTip("x ← (1−leak)·x + leak·tanh(W·x + input). Smaller: slower state change and potentially "
+                             "longer persistence. Larger: faster response to the current input. Recurrence means the "
+                             "network's actual decay is not set by this coefficient alone. Baseline 0.200.")
+        self.slider.setToolTip(self.spin.toolTip())
+        layout.addWidget(self.slider, 1)
+        layout.addWidget(self.spin)
+        self.set_value(value)
+        self.slider.valueChanged.connect(self._slider_moved)
+        self.slider.sliderReleased.connect(lambda: self.committed.emit(self.value()))
+        self.spin.valueChanged.connect(self._spin_changed)
+
+    @staticmethod
+    def to_slider(leak):
+        return round(1000 * math.log(leak / LEAK_MIN) / math.log(LEAK_MAX / LEAK_MIN))
+
+    @staticmethod
+    def from_slider(position):
+        return LEAK_MIN * (LEAK_MAX / LEAK_MIN) ** (position / 1000)
+
+    def value(self):
+        return round(self.spin.value(), 3)
+
+    def set_value(self, leak):
+        for widget, value in ((self.spin, leak), (self.slider, self.to_slider(leak))):
+            widget.blockSignals(True)
+            widget.setValue(value)
+            widget.blockSignals(False)
+
+    def _slider_moved(self, position):
+        self.spin.blockSignals(True)
+        self.spin.setValue(self.from_slider(position))
+        self.spin.blockSignals(False)
+        if not self.slider.isSliderDown():
+            self.committed.emit(self.value())
+
+    def _spin_changed(self, value):
+        self.slider.blockSignals(True)
+        self.slider.setValue(self.to_slider(value))
+        self.slider.blockSignals(False)
+        self.committed.emit(self.value())
 
 
 class LongTracePlot(QWidget):
-    """Reservoir RMS over the whole run, drawn decimated to the widget width, with reset markers."""
+    """Reservoir RMS and DA-group mean |state| per stream token, with external spans and resets."""
 
     def __init__(self, color="#86dabc", parent=None):
         super().__init__(parent)
-        self.steps: list[int] = []
+        self.positions: list[int] = []
         self.values: list[float] = []
+        self.da: list[float] = []
+        self.external: list[int] = []
         self.resets: list[int] = []
         self.total = 1
         self.color = color
-        self.setMinimumHeight(90)
+        self.setMinimumHeight(110)
 
     def clear(self, total=1):
-        self.steps.clear()
-        self.values.clear()
-        self.resets.clear()
+        for series in (self.positions, self.values, self.da, self.external, self.resets):
+            series.clear()
         self.total = max(1, total)
         self.update()
 
     def extend(self, points, resets=()):
-        for step, value in points:
-            if len(self.values) < PLOT_CAPACITY:
-                self.steps.append(step)
-                self.values.append(float(value))
+        for point in points:
+            if len(self.values) >= PLOT_CAPACITY:
+                break
+            position, rms = point[0], point[1]
+            self.positions.append(position)
+            self.values.append(float(rms))
+            self.da.append(float(point[2]) if len(point) > 2 and point[2] is not None else 0.0)
+            if len(point) > 3 and point[3] == "external":
+                self.external.append(position)
         self.resets.extend(resets)
+        if self.positions:
+            self.total = max(self.total, self.positions[-1] + 1)
         self.update()
+
+    def _x(self, position, width):
+        return 4 + position / self.total * width
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.fillRect(self.rect(), QColor("#0d1726"))
-        width, height = self.width() - 8, self.height() - 10
+        width, height = self.width() - 8, self.height() - 22
+        painter.setPen(QPen(QColor(CATEGORY_COLORS["external"]), 2))
+        for position in self.external:
+            x = self._x(position, width)
+            painter.drawLine(int(x), self.height() - 6, int(x), self.height() - 2)
         painter.setPen(QPen(QColor("#5d6f8e"), 1))
-        for step in self.resets:
-            x = 4 + step / self.total * width
-            painter.drawLine(int(x), 4, int(x), self.height() - 4)
-        if len(self.values) < 2:
-            return
-        high = max(max(self.values), 1e-8)
-        # One vertex per horizontal pixel keeps 10k-token runs cheap to redraw.
-        stride = max(1, len(self.values) // max(width, 1))
-        painter.setPen(QPen(QColor(self.color), 1.2))
-        previous = None
-        for index in range(0, len(self.values), stride):
-            x = 4 + self.steps[index] / self.total * width
-            y = 5 + (1 - self.values[index] / high) * height
-            if previous is not None:
-                painter.drawLine(int(previous[0]), int(previous[1]), int(x), int(y))
-            previous = (x, y)
-        painter.setPen(QPen(QColor("#9aaccc"), 1))
-        painter.drawText(8, 16, f"state RMS · max {high:.3f}")
+        for position in self.resets:
+            x = self._x(position, width)
+            painter.drawLine(int(x), 18, int(x), self.height() - 8)
+        if len(self.values) >= 2:
+            high = max(max(self.values), max(self.da), 1e-8)
+            stride = max(1, len(self.values) // max(width, 1))
+            for series, color in ((self.da, "#f0a35e"), (self.values, self.color)):
+                painter.setPen(QPen(QColor(color), 1.2))
+                previous = None
+                for index in range(0, len(series), stride):
+                    x = self._x(self.positions[index], width)
+                    y = 18 + (1 - series[index] / high) * (height - 4)
+                    if previous is not None:
+                        painter.drawLine(int(previous[0]), int(previous[1]), int(x), int(y))
+                    previous = (x, y)
+            painter.setPen(QPen(QColor("#9aaccc"), 1))
+            painter.drawText(8, 13, f"green: reservoir RMS · orange: DA neurons mean |state| · max {high:.3f} · "
+                                    "ticks below: injected tokens")
 
 
 class ContinuousDialog(QDialog):
-    """Parameters, live progress, streamed text and the RMS trace of one continuous run."""
+    """Parameters, live progress, provenance-colored text, interventions and the RMS trace of one run."""
     start_requested = Signal(dict)
     stop_requested = Signal()
+    inject_requested = Signal(str)
+    leak_requested = Signal(float)
 
-    def __init__(self, parent=None, output_root: Path | None = None):
+    def __init__(self, parent=None, output_root: Path | None = None, graph_dir: Path | None = None):
         super().__init__(parent)
         self.setWindowTitle("Continuous generation · sliding window")
-        self.resize(760, 760)
+        self.resize(820, 960)
         self.output_root = Path(output_root or ROOT / "results" / "continuous" / "gui")
+        self.graph_dir = Path(graph_dir or ROOT / "data" / "cx512")
         self.output_dir: Path | None = None
         self.running = False
+        self.injection_status: dict[int, str] = {}
         layout = QVBoxLayout(self)
         form = QFormLayout()
         self.seed = QLineEdit(DEFAULT_SEED_TEXT)
@@ -93,7 +180,8 @@ class ContinuousDialog(QDialog):
         self.total = QSpinBox()
         self.total.setRange(1, 100000)
         self.total.setValue(1000)
-        self.total.setToolTip("Total tokens to generate. Presets: " + ", ".join(map(str, LENGTH_PRESETS)))
+        self.total.setToolTip("Model-generated tokens to produce; injected tokens are extra. Presets: "
+                              + ", ".join(map(str, LENGTH_PRESETS)))
         self.condition = QComboBox()
         for name in CONDITIONS:
             self.condition.addItem({"clean": "Clean (no reservoir)", "fly": "Fly · persistent state",
@@ -110,12 +198,6 @@ class ContinuousDialog(QDialog):
         self.feedback.setRange(0, 1)
         self.feedback.setSingleStep(0.05)
         self.feedback.setValue(0.25)
-        self.eos = QComboBox()
-        self.eos.addItem("Stop at end-of-text", "stop")
-        self.eos.addItem("Suppress EOS (recorded)", "suppress")
-        self.prompt_policy = QComboBox()
-        for name in PROMPT_POLICIES:
-            self.prompt_policy.addItem({"raw": "Raw continuation", "chat_prefix": f"Pinned prefix: «{DEFAULT_INSTRUCTION}»"}[name], name)
         self.decoding = QComboBox()
         self.decoding.addItem("Sample (temperature, top-p)", "sample")
         self.decoding.addItem("Greedy (deterministic baseline)", "greedy")
@@ -132,6 +214,26 @@ class ContinuousDialog(QDialog):
         self.sampling_seed.setValue(42)
         self.sampling_seed.setToolTip("Same seed in every condition: identical random numbers, so Clean and Fly "
                                       "diverge only where the reservoir changed the distribution")
+        self.eos = QComboBox()
+        self.eos.addItem("Stop at end-of-text", "stop")
+        self.eos.addItem("Suppress EOS (recorded)", "suppress")
+        self.prompt_policy = QComboBox()
+        for name in PROMPT_POLICIES:
+            self.prompt_policy.addItem({"raw": "Raw continuation", "chat_prefix": f"Pinned prefix: «{DEFAULT_INSTRUCTION}»"}[name], name)
+        self.leak = LeakControl()
+        self.leak.committed.connect(self._leak_committed)
+        self.cue = QComboBox()
+        self.cue.addItem("Off", "off")
+        self.cue.addItem("DA neurons", "da")
+        self.cue.addItem("Random size-matched group (control)", "random")
+        self.cue_strength = QDoubleSpinBox()
+        self.cue_strength.setRange(0.0, 3.0)
+        self.cue_strength.setSingleStep(0.05)
+        self.cue_strength.setValue(0.5)
+        self.cue_strength.setToolTip("Extra input added inside tanh(W·x + input + cue) of the DA neurons while an "
+                                     "injected token is processed. 0 is identical to Off.")
+        self.cue_info = QLabel()
+        self.cue.currentIndexChanged.connect(self._update_cue_info)
         presets = QHBoxLayout()
         for value in LENGTH_PRESETS:
             button = QPushButton(f"{value:,}".replace(",", " "))
@@ -139,7 +241,7 @@ class ContinuousDialog(QDialog):
             presets.addWidget(button)
         form.addRow("Seed text", self.seed)
         form.addRow("Context window (tokens)", self.window_size)
-        form.addRow("Total tokens", self.total)
+        form.addRow("Total model tokens", self.total)
         form.addRow("", presets)
         form.addRow("Condition", self.condition)
         form.addRow("Reset every (tokens)", self.reset_interval)
@@ -151,6 +253,10 @@ class ContinuousDialog(QDialog):
         form.addRow("Sampling seed", self.sampling_seed)
         form.addRow("End-of-text", self.eos)
         form.addRow("Prompt policy", self.prompt_policy)
+        form.addRow("Reservoir dynamics", self.leak)
+        form.addRow("External neural cue", self.cue)
+        form.addRow("Cue strength", self.cue_strength)
+        form.addRow("", self.cue_info)
         layout.addLayout(form)
         buttons = QHBoxLayout()
         self.start = QPushButton("Start")
@@ -162,18 +268,46 @@ class ContinuousDialog(QDialog):
         for button in (self.start, self.stop, self.export):
             buttons.addWidget(button)
         layout.addLayout(buttons)
+        inject_row = QHBoxLayout()
+        self.inject_text = QLineEdit()
+        self.inject_text.setPlaceholderText("Text to insert into the running token stream (tokenized as is, no role markers)")
+        self.inject_text.returnPressed.connect(self.request_inject)
+        self.inject_button = QPushButton("Inject")
+        self.inject_button.clicked.connect(self.request_inject)
+        inject_row.addWidget(self.inject_text, 1)
+        inject_row.addWidget(self.inject_button)
+        layout.addLayout(inject_row)
+        self.inject_state = QLabel("No injections")
+        self.inject_state.setStyleSheet("color:#9aaccc")
+        layout.addWidget(self.inject_state)
         self.progress = QLabel("Idle")
         self.progress.setStyleSheet("font-family:monospace;color:#bfcee6")
         layout.addWidget(self.progress)
         self.plot = LongTracePlot()
         layout.addWidget(self.plot)
-        self.text = QPlainTextEdit()
+        legend = QLabel(" · ".join(f'<span style="color:{CATEGORY_COLORS[key]}">■ {CATEGORY_LABELS[key]}</span>'
+                                   for key in ("autonomous", "external", "post_injection")))
+        legend.setToolTip("POST-INJECTION: model tokens produced while at least one injected token is inside the "
+                          "model's window. Labels are display only and never enter the model input.")
+        layout.addWidget(legend)
+        self.text = QTextEdit()
         self.text.setReadOnly(True)
         layout.addWidget(self.text, 1)
         self.condition.currentIndexChanged.connect(self._update_enabled)
         self.decoding.currentIndexChanged.connect(self._update_enabled)
+        self._update_cue_info()
         self._update_enabled()
         self.set_running(False)
+
+    def _update_cue_info(self):
+        target = self.cue.currentData()
+        if target == "off":
+            self.cue_info.setText("Cue off: injected tokens drive the reservoir only through Qwen's activations")
+        else:
+            indices, roots = cue_neuron_indices(self.graph_dir, target)
+            kind = "nt_type = DA (FlyWire prediction)" if target == "da" else "random non-DA control, seed 42"
+            self.cue_info.setText(f"{len(indices)} neurons selected · {kind}")
+        self._update_enabled()
 
     def _update_enabled(self):
         self.reset_interval.setEnabled(self.condition.currentData() == "fly_reset" and not self.running)
@@ -183,6 +317,9 @@ class ContinuousDialog(QDialog):
         sampled = self.decoding.currentData() == "sample"
         for widget in (self.temperature, self.top_p, self.sampling_seed):
             widget.setEnabled(sampled and not self.running)
+        self.cue.setEnabled(coupled and not self.running)
+        self.cue_strength.setEnabled(coupled and not self.running and self.cue.currentData() != "off")
+        self.leak.setEnabled(coupled)
 
     def set_running(self, running: bool):
         self.running = running
@@ -190,6 +327,8 @@ class ContinuousDialog(QDialog):
                        self.decoding, self.start):
             widget.setEnabled(not running)
         self.stop.setEnabled(running)
+        self.inject_button.setEnabled(running)
+        self.inject_text.setEnabled(running)
         self.export.setEnabled(not running and self.output_dir is not None)
         self._update_enabled()
 
@@ -204,35 +343,87 @@ class ContinuousDialog(QDialog):
                 "eos_policy": self.eos.currentData(), "prompt_policy": self.prompt_policy.currentData(),
                 "decoding": self.decoding.currentData(), "temperature": self.temperature.value(),
                 "top_p": self.top_p.value(), "sampling_seed": self.sampling_seed.value(),
-                "output": str(self.output_dir)}
+                "leak_rate": self.leak.value(), "cue_target": self.cue.currentData(),
+                "cue_strength": self.cue_strength.value(), "output": str(self.output_dir)}
 
     def request_start(self):
         payload = self.payload()
-        self.text.setPlainText(payload["seed_text"])
+        self.text.clear()
+        self._append(payload["seed_text"], "autonomous")
         self.plot.clear(payload["total_tokens"])
+        self.injection_status.clear()
+        self.inject_state.setText("No injections")
         self.progress.setText(f"Starting · output {payload['output']}")
         self.started_at = time.monotonic()
         self.set_running(True)
         self.start_requested.emit(payload)
 
-    def on_progress(self, update: dict):
+    def request_inject(self):
+        text = self.inject_text.text()
+        if not self.running or not text:
+            return
+        # Exactly what the operator typed is sent; nothing is trimmed or prefixed.
+        self.inject_text.clear()
+        self.inject_requested.emit(text)
+
+    def on_injection_queued(self, injection_id, text):
+        if injection_id is None:
+            self.inject_state.setText("Injection rejected: no active run")
+            return
+        self.injection_status[injection_id] = "pending"
+        self._show_injections()
+
+    def _leak_committed(self, value):
+        if self.running:
+            self.leak_requested.emit(value)
+
+    def _append(self, text, category):
         cursor = self.text.textCursor()
         cursor.movePosition(QTextCursor.End)
-        cursor.insertText(update.get("text", ""))
+        style = QTextCharFormat()
+        style.setForeground(QColor(CATEGORY_COLORS.get(category, CATEGORY_COLORS["autonomous"])))
+        cursor.insertText(text, style)
         self.text.setTextCursor(cursor)
+
+    def _show_injections(self):
+        if self.injection_status:
+            self.inject_state.setText("Injections: " + " · ".join(f"#{k} {v}" for k, v in sorted(self.injection_status.items())))
+
+    def on_progress(self, update: dict):
+        for text, category in update.get("segments", []):
+            if text:
+                self._append(text, category)
+        if update.get("text") and not update.get("segments"):
+            self._append(update["text"], "autonomous")
         self.plot.extend(update.get("rms", []), update.get("resets", []))
+        for record in update.get("injections", []):
+            status = record["status"]
+            if status == "inserted" and record.get("left_window_position") is None:
+                status = "inserted · in window"
+            elif record.get("left_window_position") is not None:
+                status = "left the window"
+            self.injection_status[record["id"]] = status
+        self._show_injections()
+        if update.get("leak") is not None and not self.leak.slider.isSliderDown():
+            self.leak.set_value(update["leak"])
         rms = f" · RMS {update['state_rms']:.4f}" if update.get("state_rms") is not None else ""
+        da = f" · DA {update['da_abs_mean']:.4f}" if update.get("da_abs_mean") is not None else ""
+        category = CATEGORY_LABELS.get(update.get("category"), "")
         self.progress.setText(f"token {update['step'] + 1} / {update['total']} · {update['tokens_per_second']:.1f} tok/s"
-                              f" · window {update['window_len']}{rms}")
+                              f" · window {update['window_len']}{rms}{da} · {category}")
 
     def on_finished(self, summary: dict):
         self.set_running(False)
         if not isinstance(summary, dict) or summary.get("error"):
             self.progress.setText(f"Failed: {summary.get('error') if isinstance(summary, dict) else summary}")
             return
+        for record in summary.get("injections", []):
+            self.injection_status[record["id"]] = record["status"]
+        self._show_injections()
         peak = summary.get("peak_gpu_allocated_bytes")
         memory = f" · peak GPU {peak / 2**30:.2f} GiB" if peak else ""
-        self.progress.setText(f"{summary['stop_reason']} · {summary['generated_tokens']} tokens · "
+        self.progress.setText(f"{summary['stop_reason']} · {summary['generated_tokens']} model + "
+                              f"{summary.get('external_tokens', 0)} injected tokens · "
                               f"{summary['tokens_per_second']:.1f} tok/s{memory} · saved to {self.output_dir}")
 
     def export_results(self, destination=None):

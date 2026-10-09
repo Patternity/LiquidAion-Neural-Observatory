@@ -29,13 +29,31 @@ Design decisions (see docs/CONTINUOUS_GENERATION.md):
   consumes the same random numbers (common random numbers): Clean and Fly diverge only
   where the reservoir actually moved the distribution, and results do not depend on the
   order in which conditions run. No repetition penalty is applied.
+- External injection. Operator text is tokenized raw (no role markers) and teacher-forced
+  into the same stream: each injected token is appended in place of a sampled token, and the
+  next forward pass processes it (one capture + one feedback update per token, as for any
+  token). Forced steps draw no random number. Provenance of every window position is
+  tracked, so model tokens are AUTONOMOUS or POST-INJECTION depending on whether an injected
+  token is inside the window that produced them.
+- External neural cue. Optionally, while the last window token is an injected one, a fixed
+  positive input is added to the forcing of the capture update for the 16 DA-annotated
+  neurons (or a size-matched random control group). It is an input to the dynamics, not a
+  state overwrite, and it stops as soon as autonomous tokens are processed again.
+- Leak rate. The reservoir leak dt/tau can be set per run and changed at token boundaries;
+  the state is kept. Injections and leak changes are recorded with their stream position,
+  so a run can be reproduced exactly from its schedule.
 """
 from __future__ import annotations
 
 import argparse
+import csv
+import itertools
 import json
 import logging
+import queue
+import threading
 import time
+from collections import deque
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -57,6 +75,8 @@ DEFAULT_INSTRUCTION = "Продолжи текст."
 PROMPT_POLICIES = ("raw", "chat_prefix")
 DEFAULT_CHECKPOINTS = (128, 256, 512, 1024, 2048, 4096)
 MAX_WINDOW = 4096
+CUE_TARGETS = ("off", "da", "random")
+BASELINE_LEAK = 0.2
 
 
 @dataclass
@@ -78,6 +98,12 @@ class ContinuousConfig:
     temperature: float = 0.8
     top_p: float = 0.9
     sampling_seed: int = 42
+    leak_rate: float = BASELINE_LEAK
+    cue_target: str = "off"
+    cue_strength: float = 0.5
+    # Reproducible intervention schedules: (stream position, text) and (stream position, leak).
+    injections: tuple = ()
+    leak_schedule: tuple = ()
 
     def validate(self) -> None:
         if self.condition not in CONDITIONS:
@@ -106,10 +132,42 @@ class ContinuousConfig:
             raise ValueError("Temperature must be positive")
         if not np.isfinite(self.top_p) or not 0 < self.top_p <= 1:
             raise ValueError("top_p must lie in (0, 1]")
+        if not np.isfinite(self.leak_rate) or not 0 < self.leak_rate <= 1:
+            raise ValueError("Leak rate must lie in (0, 1]")
+        if self.cue_target not in CUE_TARGETS:
+            raise ValueError(f"Cue target must be one of {CUE_TARGETS}")
+        if not np.isfinite(self.cue_strength) or self.cue_strength < 0:
+            raise ValueError("Cue strength must be finite and non-negative")
+        for position, text in self.injections:
+            if int(position) < 0 or not str(text):
+                raise ValueError("Injections need a non-negative position and non-empty text")
+        for position, leak in self.leak_schedule:
+            if int(position) < 0 or not np.isfinite(leak) or not 0 < leak <= 1:
+                raise ValueError("Leak schedule needs non-negative positions and leaks in (0, 1]")
 
     @property
     def coupled(self) -> bool:
         return self.condition != "clean"
+
+
+def cue_neuron_indices(graph_dir: str | Path, target: str, seed: int = 42) -> tuple[list[int], list[str]]:
+    """Reservoir indices and root IDs of the cue group, read from nodes.csv (graph order).
+
+    "da": every node annotated nt_type == DA. "random": the same number of nodes drawn with a
+    fixed seed from the non-DA nodes. Indices equal row positions because load_graph builds
+    the graph in nodes.csv order.
+    """
+    with (Path(graph_dir) / "nodes.csv").open(newline="", encoding="utf-8") as stream:
+        rows = list(csv.DictReader(stream))
+    da = [i for i, row in enumerate(rows) if row.get("nt_type") == "DA"]
+    if target == "da":
+        chosen = da
+    elif target == "random":
+        others = [i for i in range(len(rows)) if i not in set(da)]
+        chosen = sorted(np.random.default_rng(seed).choice(others, size=len(da), replace=False).tolist())
+    else:
+        chosen = []
+    return chosen, [rows[i]["root_id"] for i in chosen]
 
 
 def prefix_token_ids(tokenizer: Any, config: "ContinuousConfig") -> list[int]:
@@ -183,6 +241,8 @@ class ContinuousRun:
         self.graph = graph
         self.reservoir = Reservoir(graph, features=engine.config.features, seed=engine.config.seed) \
             if config.coupled else None
+        if self.reservoir is not None:
+            self.reservoir.set_leak(config.leak_rate)
         self.coupling = self._coupling(self.reservoir) if config.coupled else None
         seed_ids = seed_token_ids(self.llm.tokenizer, config.seed_text)
         if not seed_ids:
@@ -191,6 +251,29 @@ class ContinuousRun:
         self.prefix_ids = prefix_token_ids(self.llm.tokenizer, config)
         # The only token state inside the engine is this bounded window (plus a fixed prefix).
         self.window_ids = seed_ids[-config.window:]
+        # Provenance per window position: None for seed/model tokens, else the injection id.
+        self.window_sources: list[int | None] = [None] * len(self.window_ids)
+        self.stream: list[tuple[int, int | None]] = []
+        self.forced: deque[tuple[int, int]] = deque()
+        self._injection_queue: queue.Queue = queue.Queue()
+        self._control_queue: queue.Queue = queue.Queue()
+        self._ids = itertools.count(1)
+        self._ids_lock = threading.Lock()
+        self.injections: dict[int, dict[str, Any]] = {}
+        self.events: list[dict[str, Any]] = []
+        self.event_states: dict[str, np.ndarray] = {}
+        self._schedule_injections = sorted((int(p), str(t)) for p, t in config.injections)
+        self._schedule_leak = sorted((int(p), float(v)) for p, v in config.leak_schedule)
+        self.da_indices, self.da_root_ids = cue_neuron_indices(engine.graph_dir, "da", engine.config.seed)
+        target = [] if config.cue_target == "off" else cue_neuron_indices(engine.graph_dir, config.cue_target,
+                                                                              engine.config.seed)[0]
+        self.cue_indices = target
+        self.cue_root_ids = cue_neuron_indices(engine.graph_dir, config.cue_target, engine.config.seed)[1] \
+            if target else []
+        self.cue_vector = None
+        if config.coupled and target and config.cue_strength > 0:
+            self.cue_vector = np.zeros(len(self.reservoir.state))
+            self.cue_vector[target] = config.cue_strength
         self.generated: list[int] = []
         self.step = 0
         self.stops = stop_token_ids(self.llm.tokenizer, self.llm.model)
@@ -213,6 +296,99 @@ class ContinuousRun:
     def _coupling(self, reservoir: Reservoir):
         mode = "random" if self.config.condition == "random" else "fly"
         return self.engine._coupling(reservoir, mode, self.config.strength, self.config.feedback)
+
+    # ------------------------------------------------- operator interventions
+
+    def inject(self, text: str) -> int:
+        """Queue operator text from any thread; it is inserted at the next safe token boundary."""
+        if not text:
+            raise ValueError("Injected text must not be empty")
+        with self._ids_lock:
+            injection_id = next(self._ids)
+        self._injection_queue.put((injection_id, text, "live"))
+        return injection_id
+
+    def request_leak(self, leak: float) -> None:
+        """Queue a leak-rate change from any thread; applied at the next token boundary."""
+        if not np.isfinite(leak) or not 0 < leak <= 1:
+            raise ValueError("Leak rate must lie in (0, 1]")
+        self._control_queue.put(float(leak))
+
+    @property
+    def position(self) -> int:
+        return len(self.stream)
+
+    def _event(self, kind: str, **values: Any) -> dict[str, Any]:
+        event = {"type": kind, "position": self.position, "step": self.step,
+                 "simulation_time": self.reservoir.time if self.reservoir is not None else None, **values}
+        self.events.append(event)
+        return event
+
+    def _set_leak(self, leak: float, origin: str) -> None:
+        if self.reservoir is None:
+            self._event("leak_ignored", requested=leak, origin=origin, reason="no reservoir (clean)")
+            return
+        old = self.reservoir.leak
+        self.reservoir.set_leak(leak)
+        self._event("leak_changed", old=old, new=self.reservoir.leak, origin=origin)
+
+    def _start_injection(self, injection_id: int, text: str, origin: str) -> None:
+        ids = seed_token_ids(self.llm.tokenizer, text)
+        record = {"id": injection_id, "text": text, "token_ids": ids, "origin": origin,
+                  "start_position": self.position, "start_step": self.step, "inserted": 0,
+                  "end_position": None, "left_window_position": None, "status": "inserting" if ids else "empty"}
+        self.injections[injection_id] = record
+        self._event("injection_started", injection_id=injection_id, tokens=len(ids), origin=origin)
+        if self.reservoir is not None:
+            self.event_states[f"injection{injection_id}_start"] = self.reservoir.state.copy()
+        self.forced.extend((token, injection_id) for token in ids)
+
+    def _apply_controls(self) -> None:
+        position = self.position
+        while self._schedule_leak and self._schedule_leak[0][0] <= position:
+            self._set_leak(self._schedule_leak.pop(0)[1], "schedule")
+        while True:
+            try:
+                leak = self._control_queue.get_nowait()
+            except queue.Empty:
+                break
+            self._set_leak(leak, "live")
+        # A new injection starts only when the previous one has been fully inserted.
+        if self.forced:
+            return
+        if self._schedule_injections and self._schedule_injections[0][0] <= position:
+            _, text = self._schedule_injections.pop(0)
+            with self._ids_lock:
+                injection_id = next(self._ids)
+            self._start_injection(injection_id, text, "schedule")
+            return
+        try:
+            injection_id, text, origin = self._injection_queue.get_nowait()
+        except queue.Empty:
+            return
+        self._start_injection(injection_id, text, origin)
+
+    def _cancel_pending(self, reason: str) -> None:
+        """Record every intervention that was not (fully) inserted; nothing is dropped silently."""
+        if self.forced:
+            injection_id = self.forced[0][1]
+            self.injections[injection_id]["status"] = f"partial_{reason}"
+            self._event("injection_interrupted", injection_id=injection_id, reason=reason,
+                        inserted=self.injections[injection_id]["inserted"], remaining=len(self.forced))
+            self.forced.clear()
+        while True:
+            try:
+                injection_id, text, origin = self._injection_queue.get_nowait()
+            except queue.Empty:
+                break
+            self.injections[injection_id] = {"id": injection_id, "text": text, "origin": origin, "token_ids": [],
+                                             "status": f"not_inserted_{reason}", "start_position": None,
+                                             "start_step": None, "inserted": 0, "end_position": None,
+                                             "left_window_position": None}
+            self._event("injection_not_inserted", injection_id=injection_id, reason=reason)
+        for position, text in self._schedule_injections:
+            self._event("scheduled_injection_not_reached", scheduled_position=position, text=text, reason=reason)
+        self._schedule_injections = []
 
     # ------------------------------------------------------------ inference
 
@@ -240,31 +416,55 @@ class ContinuousRun:
         return result.logits[0, -1].float().cpu()
 
     def step_once(self) -> dict[str, Any]:
-        """Generate one token; returns the telemetry row for this step."""
+        """Process one stream token: sample a model token, or teacher-force one injected token."""
         config = self.config
+        self._apply_controls()
+        autonomous = not self.forced
         reset = False
-        if (config.condition == "fly_reset" and self.step > 0 and self.step % config.reset_interval == 0):
-            self.reservoir.reset()
-            self.resets.append(self.step)
-            reset = True
-        if self.step in config.checkpoints and self.reservoir is not None:
-            self._open_probe()
-        if self.reservoir is not None:
-            self.snapshot_if_due()
+        if autonomous:
+            if (config.condition == "fly_reset" and self.step > 0 and self.step % config.reset_interval == 0
+                    and (not self.resets or self.resets[-1] != self.step)):
+                self.reservoir.reset()
+                self.resets.append(self.step)
+                reset = True
+            if self.step in config.checkpoints and self.reservoir is not None \
+                    and not any(p["step"] == self.step for p in self.pending_probes):
+                self._open_probe()
+            if self.reservoir is not None:
+                self.snapshot_if_due()
+        window_external = sum(source is not None for source in self.window_sources)
+        # The cue accompanies the processing of an injected token: the newest window token is external.
+        cue_applied = self.cue_vector is not None and self.window_sources[-1] is not None
         self.last_advances = 0
-        logits = self._forward_logits(self.window_ids, self.coupling)
+        if self.coupling is not None:
+            self.coupling.cue = self.cue_vector if cue_applied else None
+        try:
+            logits = self._forward_logits(self.window_ids, self.coupling)
+        finally:
+            if self.coupling is not None:
+                self.coupling.cue = None
         self.forward_calls += 1
         self.reservoir_advances += self.last_advances
-        for probe in self.pending_probes:
-            if probe["step"] == self.step and "main_logits" not in probe:
-                probe["main_logits"] = logits.numpy().copy()
-        token, suppressed = self.select(logits)
-        if suppressed is not None:
-            self.eos_suppressed.append({"step": self.step, "eos_token_id": suppressed})
-        elif token in self.stops:
-            self.stop_reason = "eos"
-        row: dict[str, Any] = {"step": self.step, "token_id": token, "window_len": len(self.window_ids),
-                               "window_start": len(self.seed_ids) + self.step - len(self.window_ids),
+        suppressed = None
+        if autonomous:
+            for probe in self.pending_probes:
+                if probe["step"] == self.step and "main_logits" not in probe:
+                    probe["main_logits"] = logits.numpy().copy()
+            token, suppressed = self.select(logits)
+            injection_id = None
+            if suppressed is not None:
+                self.eos_suppressed.append({"step": self.step, "eos_token_id": suppressed})
+            elif token in self.stops:
+                self.stop_reason = "eos"
+            category = "post_injection" if window_external else "autonomous"
+        else:
+            token, injection_id = self.forced.popleft()
+            category = "external"
+        row: dict[str, Any] = {"step": self.step, "position": self.position, "token_id": token,
+                               "source": "model" if autonomous else "external", "injection_id": injection_id,
+                               "category": category, "window_len": len(self.window_ids),
+                               "window_start": len(self.seed_ids) + self.position - len(self.window_ids),
+                               "window_external": window_external, "cue_applied": cue_applied,
                                "reset": reset, "eos_suppressed": suppressed, "reservoir_advances": self.last_advances}
         if self.coupling is not None and self.coupling.records:
             record = self.coupling.records[-1]
@@ -273,17 +473,42 @@ class ContinuousRun:
                         "delta_relative_rms": record["delta_relative_rms"],
                         "steering_vector_norm": record["steering_vector_norm"],
                         "feedback_input_norm": record.get("feedback_input_norm", 0.0),
-                        "input_norm": record["input_norm"], "capture_rms": record["capture_rms"]})
+                        "input_norm": record["input_norm"], "capture_rms": record["capture_rms"],
+                        "leak": self.reservoir.leak})
+            if self.da_indices:
+                da = state[self.da_indices]
+                row.update({"da_mean": float(da.mean()), "da_abs_mean": float(np.abs(da).mean())})
             # Per-step traces would grow without bound over thousands of tokens.
             self.coupling.clear_trace()
         if self.stop_reason == "eos":
             row["fragment"] = ""
             return row
-        self.generated.append(token)
+        before = {source for source in self.window_sources if source is not None}
+        self.stream.append((token, injection_id))
         self.window_ids = (self.window_ids + [token])[-config.window:]
+        self.window_sources = (self.window_sources + [injection_id])[-config.window:]
         self.max_window_seen = max(self.max_window_seen, len(self.window_ids))
         row["fragment"] = self.decoder.push(token)
-        self.step += 1
+        if autonomous:
+            self.generated.append(token)
+            self.step += 1
+        else:
+            record = self.injections[injection_id]
+            record["inserted"] += 1
+            if not any(source == injection_id for _, source in self.forced):
+                record["status"] = "inserted"
+                record["end_position"] = self.position
+                self._event("injection_completed", injection_id=injection_id, tokens=record["inserted"])
+                if self.reservoir is not None:
+                    self.event_states[f"injection{injection_id}_end"] = self.reservoir.state.copy()
+        after = {source for source in self.window_sources if source is not None}
+        for injection_id_left in sorted(before - after):
+            # The last token of this injection has just been evicted from the model's window.
+            self.injections[injection_id_left]["left_window_position"] = self.position
+            self._event("injection_left_window", injection_id=injection_id_left)
+            if self.reservoir is not None:
+                self.event_states[f"injection{injection_id_left}_left_window"] = self.reservoir.state.copy()
+        row["window_external_after"] = len([s for s in self.window_sources if s is not None])
         self._run_due_probes()
         return row
 
@@ -318,20 +543,24 @@ class ContinuousRun:
     # --------------------------------------------------------------- probes
 
     def _open_probe(self) -> None:
-        self.pending_probes.append({"step": self.step, "context": list(self.window_ids),
-                                    "state": self.reservoir.state.copy(), "time": self.reservoir.time})
+        self.pending_probes.append({"step": self.step, "position": self.position, "context": list(self.window_ids),
+                                    "sources": list(self.window_sources), "state": self.reservoir.state.copy(),
+                                    "time": self.reservoir.time, "leak": self.reservoir.leak})
 
     def _run_due_probes(self, force: bool = False) -> None:
         due = [p for p in self.pending_probes
-               if force or self.step >= p["step"] + self.config.probe_tokens]
+               if force or self.position >= p["position"] + self.config.probe_tokens]
         for probe in due:
             self.pending_probes.remove(probe)
-            forced = self.generated[probe["step"]:probe["step"] + self.config.probe_tokens]
+            forced = self.stream[probe["position"]:probe["position"] + self.config.probe_tokens]
             if forced:
                 self.probes.append(self.probe(probe, forced))
 
-    def probe(self, checkpoint: dict[str, Any], forced: list[int]) -> dict[str, Any]:
-        """Score identical tokens under retained, zero and no reservoir state on cloned reservoirs."""
+    def probe(self, checkpoint: dict[str, Any], forced: list[tuple[int, int | None]]) -> dict[str, Any]:
+        """Score identical stream tokens under retained, zero and no reservoir state on cloned reservoirs.
+
+        Clones use the leak in force at the checkpoint and the same cue rule as the main run.
+        """
         state_before = self.reservoir.state.copy()
         time_before = self.reservoir.time
 
@@ -340,16 +569,21 @@ class ContinuousRun:
                 coupling = None
             else:
                 reservoir = Reservoir(self.graph, features=self.engine.config.features, seed=self.engine.config.seed)
+                reservoir.set_leak(checkpoint["leak"])
                 reservoir.state = state.copy()
                 reservoir.time = checkpoint["time"]
                 coupling = self._coupling(reservoir)
-            window = list(checkpoint["context"])
+            window, sources = list(checkpoint["context"]), list(checkpoint.get("sources", [None] * len(checkpoint["context"])))
             rows = []
-            for token in forced:
+            for token, source in forced:
+                if coupling is not None:
+                    coupling.cue = self.cue_vector if (self.cue_vector is not None and sources[-1] is not None) else None
                 rows.append(self._forward_logits(window, coupling).numpy())
                 if coupling is not None:
+                    coupling.cue = None
                     coupling.clear_trace()
                 window = (window + [token])[-self.config.window:]
+                sources = (sources + [source])[-self.config.window:]
             return np.stack(rows)
 
         retained = run(checkpoint["state"])
@@ -357,7 +591,7 @@ class ContinuousRun:
         clean = run(None)
         if not np.array_equal(self.reservoir.state, state_before) or self.reservoir.time != time_before:
             raise RuntimeError("Checkpoint probe mutated the main reservoir")
-        return {"step": checkpoint["step"], "probe_tokens": len(forced),
+        return {"step": checkpoint["step"], "position": checkpoint["position"], "probe_tokens": len(forced),
                 "context_tokens": len(checkpoint["context"]),
                 "seed_tokens_in_context": max(0, len(self.seed_ids) - checkpoint["step"]),
                 "retained_state_rms": float(np.sqrt(np.mean(checkpoint["state"] ** 2))),
@@ -389,6 +623,15 @@ class ContinuousRun:
                 "prefix_token_ids": self.prefix_ids,
                 "inference": "full recomputation of the bounded window each step, use_cache=False, positions 0..len-1",
                 "seed_token_ids": self.seed_ids, "stop_token_ids": sorted(self.stops),
+                "reservoir_dynamics": {"dt": self.reservoir.dynamics.dt, "tau": self.reservoir.dynamics.tau,
+                                       "leak": self.reservoir.leak, "gain": self.reservoir.dynamics.gain,
+                                       "input_strength": self.reservoir.dynamics.input_strength}
+                if self.reservoir is not None else None,
+                "cue": {"target": self.config.cue_target, "strength": self.config.cue_strength,
+                        "indices": self.cue_indices, "root_ids": self.cue_root_ids,
+                        "applied_to": "capture update forcing, while the newest window token is injected",
+                        "active": self.cue_vector is not None},
+                "da_neurons": {"indices": self.da_indices, "root_ids": self.da_root_ids},
                 "device": str(self.llm.device), "started_utc": datetime.now(timezone.utc).isoformat()}
 
     def _open_files(self) -> None:
@@ -435,6 +678,7 @@ class ContinuousRun:
             self.stop_reason = self.stop_reason or "error"
             raise
         finally:
+            self._cancel_pending(self.stop_reason or "error")
             self.seconds = time.perf_counter() - started
             tail = self.decoder.flush()
             self.tail_text = tail
@@ -458,13 +702,18 @@ class ContinuousRun:
                 "forward_calls": self.forward_calls, "reservoir_advances": self.reservoir_advances,
                 "resets": self.resets, "eos_suppressed": self.eos_suppressed,
                 "peak_gpu_allocated_bytes": peak, "probes": self.probes,
+                "stream_tokens": len(self.stream), "external_tokens": sum(s is not None for _, s in self.stream),
+                "injections": [self.injections[k] for k in sorted(self.injections)], "events": self.events,
+                "final_leak": self.reservoir.leak if self.reservoir is not None else None,
                 "final_state_rms": float(np.sqrt(np.mean(self.reservoir.state ** 2))) if self.reservoir is not None else None}
 
     def _save(self) -> None:
         steps = sorted(self.snapshots)
         np.savez_compressed(self.output / "states.npz", steps=np.array(steps, dtype=np.int64),
-                            states=np.stack([self.snapshots[s] for s in steps]) if steps else np.empty((0, 0)))
-        (self.output / "token_ids.json").write_text(json.dumps({"seed": self.seed_ids, "generated": self.generated}) + "\n")
+                            states=np.stack([self.snapshots[s] for s in steps]) if steps else np.empty((0, 0)),
+                            **{f"event_{name}": state for name, state in self.event_states.items()})
+        (self.output / "token_ids.json").write_text(json.dumps({"seed": self.seed_ids, "generated": self.generated,
+                                                                "stream": [[t, s] for t, s in self.stream]}) + "\n")
         (self.output / "summary.json").write_text(json.dumps(self.summary(), ensure_ascii=False, indent=2) + "\n")
 
 
@@ -479,7 +728,8 @@ def load_run(path: str | Path) -> dict[str, Any]:
         raw = gzip.decompress((path / "telemetry.jsonl.gz").read_bytes()).decode("utf-8")
     telemetry = [json.loads(line) for line in raw.splitlines() if line]
     with np.load(path / "states.npz") as data:
-        states = {"steps": data["steps"].tolist(), "states": data["states"]}
+        states = {"steps": data["steps"].tolist(), "states": data["states"],
+                  "events": {key[len("event_"):]: data[key] for key in data.files if key.startswith("event_")}}
     return {"metadata": json.loads((path / "metadata.json").read_text()),
             "summary": json.loads((path / "summary.json").read_text()),
             "tokens": json.loads((path / "token_ids.json").read_text()),
@@ -739,6 +989,12 @@ def main() -> None:
     parser.add_argument("--temperature", type=float, default=0.8)
     parser.add_argument("--top-p", type=float, default=0.9)
     parser.add_argument("--sampling-seed", type=int, default=42)
+    parser.add_argument("--leak", type=float, default=BASELINE_LEAK, help="Reservoir leak dt/tau (baseline 0.2)")
+    parser.add_argument("--cue", choices=CUE_TARGETS, default="off", help="External neural cue target group")
+    parser.add_argument("--cue-strength", type=float, default=0.5)
+    parser.add_argument("--inject", action="append", default=[], metavar="POSITION:TEXT",
+                        help="Insert TEXT when the stream (after the seed) reaches POSITION tokens; repeatable")
+    parser.add_argument("--leak-at", action="append", default=[], metavar="POSITION:LEAK")
     parser.add_argument("--cpu", action="store_true")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
@@ -754,7 +1010,11 @@ def main() -> None:
                             probe_tokens=args.probe_tokens, snapshot_interval=args.snapshot_interval,
                             prompt_policy=args.prompt_policy, instruction=args.instruction,
                             decoding=args.decoding, temperature=args.temperature, top_p=args.top_p,
-                            sampling_seed=args.sampling_seed)
+                            sampling_seed=args.sampling_seed, leak_rate=args.leak, cue_target=args.cue,
+                            cue_strength=args.cue_strength,
+                            injections=tuple((int(item.split(":", 1)[0]), item.split(":", 1)[1]) for item in args.inject),
+                            leak_schedule=tuple((int(item.split(":", 1)[0]), float(item.split(":", 1)[1]))
+                                                for item in args.leak_at))
     conditions = parse_conditions(args.conditions, [int(x) for x in args.reset_intervals.split(",") if x])
     result = run_experiment(engine, base, conditions, args.output)
     print(json.dumps([{key: row[key] for key in ("condition", "generated_tokens", "stop_reason", "tokens_per_second")}

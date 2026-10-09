@@ -38,6 +38,8 @@ class Coupling:
         self.states: list[np.ndarray] = []
         self.handles: list[Any] = []
         self.static_state: np.ndarray | None = None
+        # Optional per-neuron input added to the capture update only (external-origin cue).
+        self.cue: np.ndarray | None = None
         self.current: dict[str, Any] = {}
         self.token_position = 0
 
@@ -52,7 +54,7 @@ class Coupling:
         if h.ndim != 3 or h.shape[0] != 1:
             raise ValueError("This MVP supports one sequence at a time")
         observation = self.features(h[0, -1])
-        self.reservoir.advance(observation)
+        self.reservoir.advance(observation, extra=self.cue)
         self.current = {"step": len(self.records), "token_position": self.token_position,
                         "sequence_length": h.shape[1], "capture_layer": self.capture_layer,
                         "steer_layer": self.steer_layer,

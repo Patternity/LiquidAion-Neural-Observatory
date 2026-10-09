@@ -1,0 +1,224 @@
+{
+  "checks": [
+    {
+      "check": "run0: injected text inserted exactly",
+      "passed": true,
+      "detail": "inserted"
+    },
+    {
+      "check": "run0: provenance sequence",
+      "passed": true,
+      "detail": "['autonomous', 'external', 'post_injection', 'autonomous']"
+    },
+    {
+      "check": "run0: AUTONOMOUS after the injection left the window",
+      "passed": true,
+      "detail": "left at 455"
+    },
+    {
+      "check": "run0: no reservoir reset at injection",
+      "passed": true,
+      "detail": "rms 0.171"
+    },
+    {
+      "check": "run0: three provenance colors shown",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "run0: GUI text equals exported text (U+00A0 shown as space by Qt)",
+      "passed": true,
+      "detail": "1 non-breaking spaces"
+    },
+    {
+      "check": "run0: cue off applies no cue",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "run0: exported copy identical",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "run0: exported settings consistent",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "run1: injected text inserted exactly",
+      "passed": true,
+      "detail": "inserted"
+    },
+    {
+      "check": "run1: provenance sequence",
+      "passed": true,
+      "detail": "['autonomous', 'external', 'post_injection', 'autonomous']"
+    },
+    {
+      "check": "run1: AUTONOMOUS after the injection left the window",
+      "passed": true,
+      "detail": "left at 453"
+    },
+    {
+      "check": "run1: no reservoir reset at injection",
+      "passed": true,
+      "detail": "rms 0.162"
+    },
+    {
+      "check": "run1: three provenance colors shown",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "run1: GUI text equals exported text (U+00A0 shown as space by Qt)",
+      "passed": true,
+      "detail": "1 non-breaking spaces"
+    },
+    {
+      "check": "run1: DA cue applied on every injected-token update",
+      "passed": true,
+      "detail": "23 updates"
+    },
+    {
+      "check": "run1: measured DA activity rises during the cue",
+      "passed": true,
+      "detail": "before -0.125, during +0.097"
+    },
+    {
+      "check": "run1: live leak change recorded and applied",
+      "passed": true,
+      "detail": "{'type': 'leak_changed', 'position': 475, 'step': 452, 'simulation_time': 189.99999999999775, 'old': 0.2, 'new': 0.02, 'origin': 'live'}"
+    },
+    {
+      "check": "run1: exported copy identical",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "run1: exported settings consistent",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "classic: leak 0.02 decays more slowly per idle update than 0.2",
+      "passed": true,
+      "detail": "per-update RMS factor 0.9515 at 0.2 (16 samples) vs 0.9883 at 0.02 (12)"
+    },
+    {
+      "check": "classic: engine leak changed",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "runs": [
+    {
+      "run": "run0",
+      "summary": {
+        "stop_reason": "total_tokens",
+        "generated_tokens": 700,
+        "external_tokens": 23,
+        "tokens_per_second": 26.929300904923718,
+        "peak_gpu_allocated_bytes": 1241089024
+      },
+      "injection": {
+        "id": 1,
+        "text": " Из-за деревьев неожиданно появился огромный зелёный мамонт.",
+        "token_ids": [
+          129977,
+          12,
+          126213,
+          134818,
+          136263,
+          18658,
+          21259,
+          47162,
+          7336,
+          13685,
+          17686,
+          126478,
+          130143,
+          127776,
+          12228,
+          33513,
+          10885,
+          12121,
+          44022,
+          33513,
+          141617,
+          96241,
+          13
+        ],
+        "origin": "live",
+        "start_position": 304,
+        "start_step": 304,
+        "inserted": 23,
+        "end_position": 327,
+        "left_window_position": 455,
+        "status": "inserted"
+      },
+      "visible_categories": [
+        "autonomous",
+        "external",
+        "post_injection",
+        "autonomous"
+      ],
+      "output": "results/gui-acceptance/runs/20261010-031425-fly"
+    },
+    {
+      "run": "run1",
+      "summary": {
+        "stop_reason": "total_tokens",
+        "generated_tokens": 700,
+        "external_tokens": 23,
+        "tokens_per_second": 26.792801571923206,
+        "peak_gpu_allocated_bytes": 1241089024
+      },
+      "injection": {
+        "id": 1,
+        "text": " Из-за деревьев неожиданно появился огромный зелёный мамонт.",
+        "token_ids": [
+          129977,
+          12,
+          126213,
+          134818,
+          136263,
+          18658,
+          21259,
+          47162,
+          7336,
+          13685,
+          17686,
+          126478,
+          130143,
+          127776,
+          12228,
+          33513,
+          10885,
+          12121,
+          44022,
+          33513,
+          141617,
+          96241,
+          13
+        ],
+        "origin": "live",
+        "start_position": 302,
+        "start_step": 302,
+        "inserted": 23,
+        "end_position": 325,
+        "left_window_position": 453,
+        "status": "inserted"
+      },
+      "visible_categories": [
+        "autonomous",
+        "external",
+        "post_injection",
+        "autonomous"
+      ],
+      "output": "results/gui-acceptance/runs/20261010-031452-fly"
+    }
+  ],
+  "errors": [],
+  "passed": true
+}

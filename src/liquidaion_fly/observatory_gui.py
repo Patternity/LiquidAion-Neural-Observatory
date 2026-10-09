@@ -125,6 +125,7 @@ class EngineWorker(QObject):
         self.timer = None
         self.last_emit = 0.0
         self.busy = False
+        self.active_run = None
 
     @Slot()
     def initialize(self):
@@ -261,6 +262,16 @@ class EngineWorker(QObject):
         finally:
             self.busy = False
 
+    def inject(self, text):
+        """Called from the GUI thread while a run is active; only queues the request (thread-safe)."""
+        run = self.active_run
+        return run.inject(text) if run is not None else None
+
+    def set_continuous_leak(self, leak):
+        run = self.active_run
+        if run is not None:
+            run.request_leak(leak)
+
     def _continuous(self, payload):
         """Run one sliding-window condition; stream throttled progress and reservoir state."""
         from .continuous import ContinuousConfig, ContinuousRun
@@ -268,13 +279,23 @@ class EngineWorker(QObject):
         settings = dict(payload)
         output = Path(settings.pop("output"))
         config = ContinuousConfig(**settings)
-        buffer = {"text": "", "rms": [], "resets": [], "last": 0.0}
+        buffer = {"segments": [], "rms": [], "resets": [], "last": 0.0}
 
         def emit(row, run):
-            update = {"step": row["step"], "total": config.total_tokens, "window_len": row["window_len"],
-                      "tokens_per_second": (row["step"] + 1) / max(row.get("elapsed", 0.0), 1e-9),
-                      "state_rms": row.get("state_rms"), "text": buffer["text"], "rms": buffer["rms"],
-                      "resets": buffer["resets"]}
+            segments = []
+            for text, category in buffer["segments"]:
+                if segments and segments[-1][1] == category:
+                    segments[-1] = (segments[-1][0] + text, category)
+                else:
+                    segments.append((text, category))
+            update = {"step": row["step"], "position": row["position"], "total": config.total_tokens,
+                      "window_len": row["window_len"], "category": row["category"],
+                      "tokens_per_second": (len(run.stream)) / max(row.get("elapsed", 0.0), 1e-9),
+                      "state_rms": row.get("state_rms"), "da_abs_mean": row.get("da_abs_mean"),
+                      "leak": run.reservoir.leak if run.reservoir is not None else None,
+                      "segments": segments, "rms": buffer["rms"], "resets": buffer["resets"],
+                      "injections": [{key: record[key] for key in ("id", "status", "inserted", "left_window_position")}
+                                     for record in run.injections.values()]}
             self.continuous_progress.emit(update)
             if run.reservoir is not None:
                 snapshot = {"state": run.reservoir.state.tolist(), "state_rms": row.get("state_rms", 0.0),
@@ -288,14 +309,14 @@ class EngineWorker(QObject):
                                     gpu_reserved_bytes=torch.cuda.memory_reserved(self.engine.llm.device),
                                     gpu_free_bytes=free, gpu_total_bytes=total)
                 self.telemetry.emit(snapshot)
-            buffer.update(text="", rms=[], resets=[], last=time.monotonic())
+            buffer.update(segments=[], rms=[], resets=[], last=time.monotonic())
 
         def progress(row, run):
-            buffer["text"] += row.get("fragment", "")
+            buffer["segments"].append((row.get("fragment", ""), row["category"]))
             if "state_rms" in row:
-                buffer["rms"].append((row["step"], row["state_rms"]))
+                buffer["rms"].append((row["position"], row["state_rms"], row.get("da_abs_mean"), row["category"]))
             if row.get("reset"):
-                buffer["resets"].append(row["step"])
+                buffer["resets"].append(row["position"])
             buffer["row"] = row
             # Signals are throttled; the full telemetry is written to disk by the run itself.
             if time.monotonic() - buffer["last"] >= 0.1:
@@ -303,10 +324,14 @@ class EngineWorker(QObject):
 
         with self.engine._lock:
             run = ContinuousRun(self.engine, config, output)
-            summary = run.run(self.cancel_event, progress)
+            self.active_run = run
+            try:
+                summary = run.run(self.cancel_event, progress)
+            finally:
+                self.active_run = None
         if "row" in buffer:
             # Bytes of an incomplete character are only decoded when the run ends.
-            buffer["text"] += run.tail_text
+            buffer["segments"].append((run.tail_text, buffer["row"]["category"]))
             emit(buffer["row"], run)
         summary["output"] = str(output)
         return summary
@@ -521,7 +546,21 @@ class ObservatoryWindow(QMainWindow):
             widget.toggled.connect(self.configure)
         for widget in (self.strength, self.feedback_strength):
             widget.valueChanged.connect(self.configure)
-        side_layout.addWidget(controls)
+        dynamics = QGroupBox("RESERVOIR DYNAMICS")
+        dynamics_layout = QVBoxLayout(dynamics)
+        from .continuous_gui import LeakControl
+        self.leak = LeakControl(getattr(config, "leak_rate", 0.2))
+        self.leak.committed.connect(lambda value: self.command.emit("configure", {"leak_rate": value}))
+        dynamics_layout.addWidget(self.leak)
+        leak_help = QLabel("Smaller: slower change, potentially longer persistence. Larger: faster response. "
+                           "Applied to the live state at the next update; baseline 0.200.")
+        leak_help.setWordWrap(True)
+        leak_help.setStyleSheet("color:#8c9fbd;font-size:10px")
+        dynamics_layout.addWidget(leak_help)
+        coupling_column = QVBoxLayout()
+        coupling_column.addWidget(controls)
+        coupling_column.addWidget(dynamics)
+        side_layout.addLayout(coupling_column)
         metrics = QGroupBox("LIVE MEASUREMENTS")
         metric_layout = QVBoxLayout(metrics)
         self.metrics = QLabel("State RMS 0.0000\nRelative intervention 0.0000\nSimulation time 0.0\nInput norm 0.0000")
@@ -558,6 +597,11 @@ class ObservatoryWindow(QMainWindow):
         selection_layout.addWidget(self.neuron_info)
         self.neuron_plot = TracePlot("#f5d285")
         selection_layout.addWidget(self.neuron_plot)
+        time_base = QLabel("x: telemetry samples, not uniform time. Idle: 1 reservoir update per 250 ms. "
+                           "Generation: 2 updates per token, displayed at most every 50 ms.")
+        time_base.setWordWrap(True)
+        time_base.setStyleSheet("color:#7388aa;font-size:9px")
+        selection_layout.addWidget(time_base)
         side_layout.addWidget(selection)
         experiment = QGroupBox("EXPERIMENTS")
         exp_layout = QVBoxLayout(experiment)
@@ -661,7 +705,7 @@ class ObservatoryWindow(QMainWindow):
     def _set_busy(self, busy):
         enabled = not busy and not self.is_replay
         for widget in (self.send, self.scientific, self.steering, self.feedback, self.strength, self.feedback_strength,
-                       self.max_tokens, self.context_tokens, self.continuous_button, *self.demo_buttons):
+                       self.max_tokens, self.context_tokens, self.continuous_button, self.leak, *self.demo_buttons):
             widget.setEnabled(enabled)
         self.cancel.setEnabled(busy and not self.is_replay)
 
@@ -837,10 +881,21 @@ class ObservatoryWindow(QMainWindow):
             self.continuous_dialog = ContinuousDialog(self)
             self.continuous_dialog.start_requested.connect(self.start_continuous)
             self.continuous_dialog.stop_requested.connect(self.cancel_generation)
+            self.continuous_dialog.inject_requested.connect(self.inject_continuous)
+            self.continuous_dialog.leak_requested.connect(self.set_continuous_leak)
             if self.worker is not None:
                 self.worker.continuous_progress.connect(self.continuous_dialog.on_progress)
         self.continuous_dialog.show()
         self.continuous_dialog.raise_()
+
+    def inject_continuous(self, text):
+        # Direct call: the worker thread is busy in the generation loop; the run queue is thread-safe.
+        injection_id = self.worker.inject(text) if self.worker is not None else None
+        self.continuous_dialog.on_injection_queued(injection_id, text)
+
+    def set_continuous_leak(self, leak):
+        if self.worker is not None:
+            self.worker.set_continuous_leak(leak)
 
     def start_continuous(self, payload):
         self._set_busy(True)
@@ -882,6 +937,7 @@ class ObservatoryWindow(QMainWindow):
                 widget.blockSignals(True)
                 widget.setValue(int(result["settings"].get(key, widget.value())))
                 widget.blockSignals(False)
+            self.leak.set_value(float(result["settings"].get("leak_rate", 0.2)))
             self._limit_new_tokens()
 
     def render_science_result(self):
