@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import faulthandler
 import json
 import logging
 import os
@@ -128,6 +129,8 @@ def main() -> None:
                         help="Enable a discovered plugin for this launch (repeatable). Plugins are trusted Python "
                              "code; see docs/PLUGINS.md. Also: LIQUIDAION_PLUGINS, Plugins menu.")
     args = parser.parse_args()
+    # A native crash (Qt, VTK, CUDA) then still prints the Python stack of every thread to stderr.
+    faulthandler.enable(all_threads=True)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
     config = load_configuration(args.config, args.cpu)
     if args.model_profile:

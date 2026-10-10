@@ -26,7 +26,8 @@ from typing import Any, Callable, Iterable
 
 from PySide6.QtCore import QObject, QSettings, Qt, Signal, Slot
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDockWidget, QDoubleSpinBox, QFileDialog, QFormLayout,
-                               QHBoxLayout, QLabel, QLineEdit, QMainWindow, QPushButton, QSpinBox, QWidget)
+                               QFrame, QHBoxLayout, QLabel, QLineEdit, QMainWindow, QPushButton, QScrollArea,
+                               QSpinBox, QWidget)
 
 from .plugin_api import ComponentSpec, Parameter, PluginError
 
@@ -256,7 +257,15 @@ class PanelDock(QDockWidget):
             widget.setWordWrap(True)
             self.shell.on_plugin_log(f"Panel {self.spec.component_id} failed: {self.error}")
         self.content = widget
-        self.setWidget(widget)
+        if self.spec.metadata.get("scroll", True):
+            # Panels may be taller than their dock; scrolling keeps the workspace layout flexible.
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll.setFrameShape(QFrame.NoFrame)
+            scroll.setWidget(widget)
+            self.setWidget(scroll)
+        else:
+            self.setWidget(widget)
 
     def dispose(self) -> None:
         if self.context is not None:
@@ -293,6 +302,15 @@ class Workspace(QMainWindow):
         area = {"left": Qt.LeftDockWidgetArea, "right": Qt.RightDockWidgetArea, "top": Qt.TopDockWidgetArea,
                 "bottom": Qt.BottomDockWidgetArea}[dock.spec.metadata.get("area", "right")]
         self.addDockWidget(area, dock)
+
+    def apply_proportions(self, top: list[str], bottom: list[str], top_fraction: float) -> None:
+        """Give the top row a share of the workspace height (the docks' own minimums still apply)."""
+        top_docks = [self.docks[i] for i in top if i in self.docks]
+        bottom_docks = [self.docks[i] for i in bottom if i in self.docks]
+        if top_docks and bottom_docks and self.height() > 0:
+            height = self.height()
+            self.resizeDocks([top_docks[0], bottom_docks[0]],
+                             [int(height * top_fraction), int(height * (1 - top_fraction))], Qt.Vertical)
 
     def arrange(self, top: list[str], bottom: list[str], tabs: dict[str, list[str]]) -> None:
         """The default layout: a top row and a bottom row of docks, plus tab groups."""

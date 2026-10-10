@@ -12,12 +12,13 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
+import shiboken6
 import pandas as pd
 from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QObject, QSettings, QThread, QTimer, Qt, Signal, Slot
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
     QFileDialog, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QMainWindow,
-    QMessageBox, QPushButton, QSlider, QSpinBox, QSplitter, QTableWidget, QTableWidgetItem, QTextBrowser,
+    QMessageBox, QPushButton, QScrollArea, QSlider, QSpinBox, QSplitter, QTableWidget, QTableWidgetItem, QTextBrowser,
     QTextEdit, QVBoxLayout, QWidget)
 
 from .brain_view import BrainView
@@ -703,7 +704,9 @@ class ObservatoryWindow(QMainWindow):
         def register(plugin):
             for component_id, title, method, area in self.BUILTIN_PANELS:
                 plugin.panel(component_id, title, lambda context, m=method: getattr(context.shell, m)(context),
-                             area=area, description="Built-in Observatory panel")
+                             area=area, description="Built-in Observatory panel",
+                             # Chats scroll themselves; the 3D view must not live in a scroll area.
+                             metadata={"scroll": area != "top"})
         self.registry.register_builtin(register)
 
     def _build_ui(self, config, brain_factory):
@@ -726,7 +729,15 @@ class ObservatoryWindow(QMainWindow):
         top.addWidget(self.status)
         outer.addLayout(top)
         self.workspace = Workspace(self)
-        outer.addWidget(self.workspace, 1)
+        # The panel area scrolls vertically instead of squeezing the chats and the 3D view on short
+        # screens; on tall screens it simply fills the window.
+        self.workspace.setMinimumHeight(self.WORKSPACE_MIN_HEIGHT)
+        self.workspace_scroll = QScrollArea()
+        self.workspace_scroll.setWidgetResizable(True)
+        self.workspace_scroll.setFrameShape(QFrame.NoFrame)
+        self.workspace_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.workspace_scroll.setWidget(self.workspace)
+        outer.addWidget(self.workspace_scroll, 1)
         self._register_builtin_panels()
         # Built-in panels first: plugin panels may log into the built-in plugin console.
         for spec in sorted(self.registry.list("ui_panel"), key=lambda s: s.plugin_id != "builtin"):
@@ -812,17 +823,31 @@ class ObservatoryWindow(QMainWindow):
             action.setChecked(not dock.isHidden())
             action.setObjectName(f"toggle:{component_id}")
             action.toggled.connect(lambda shown, d=dock: d.reopen() if shown else d.close())
-            dock.visibilityChanged.connect(lambda visible, a=action, d=dock: a.setChecked(not d.isHidden()))
+            dock.visibilityChanged.connect(lambda visible, a=action, d=dock: self._sync_view_action(a, d))
         view.addSeparator()
         view.addAction("Reset layout").triggered.connect(self.reset_layout)
         plugins = self.menuBar().addMenu("Plugins")
         plugins.addAction("Manage plugins…").triggered.connect(self.manage_plugins)
         plugins.addAction("Restore built-in components").triggered.connect(self.restore_builtin_components)
 
+    @staticmethod
+    def _sync_view_action(action, dock):
+        # Docks report visibility changes while the window is being torn down; never touch dead objects.
+        if shiboken6.isValid(action) and shiboken6.isValid(dock):
+            action.setChecked(not dock.isHidden())
+
+    WORKSPACE_MIN_HEIGHT = 1050
+    TOP_FRACTION = 0.62  # the earlier fixed window gave the chats and the 3D view about 62% of the height
+
     def _restore_layout(self):
         state = self.preferences.value("workspace/state")
-        if state is not None:
-            self.workspace.restoreState(QByteArray(state), LAYOUT_VERSION)
+        restored = state is not None and self.workspace.restoreState(QByteArray(state), LAYOUT_VERSION)
+        if not restored:
+            QTimer.singleShot(0, self._default_proportions)
+
+    def _default_proportions(self):
+        if shiboken6.isValid(self):
+            self.workspace.apply_proportions(self.DEFAULT_TOP, self.DEFAULT_BOTTOM, self.TOP_FRACTION)
 
     def save_layout(self):
         self.preferences.setValue("workspace/state", self.workspace.saveState(LAYOUT_VERSION))
@@ -836,6 +861,7 @@ class ObservatoryWindow(QMainWindow):
 
     def reset_layout(self):
         self.workspace.arrange(self.DEFAULT_TOP, self.DEFAULT_BOTTOM, self._default_tabs())
+        self._default_proportions()
         self.preferences.remove("workspace/state")
 
     def _panel_clean_chat(self, context):
@@ -1678,6 +1704,11 @@ class ObservatoryWindow(QMainWindow):
                 return
         self.save_layout()
         for dock in self.workspace.docks.values():
+            # Teardown order: the menu actions and panels go before the docks report visibility.
+            try:
+                dock.visibilityChanged.disconnect()
+            except (RuntimeError, TypeError):
+                pass
             if not dock.persistent:
                 dock.dispose()
         self.brain.close()
