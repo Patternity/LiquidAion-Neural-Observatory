@@ -227,12 +227,19 @@ def _forced_loop(engine: Any, prompt_ids: torch.Tensor, tokens: list[int] | None
 
 def run_probe(engine: Any, prompt: str, max_tokens: int = 48, output: Path | None = None,
               forced_tokens: list[int] | None = None, counterfactual: bool = True,
-              cancel: Event | None = None, label: str = "probe") -> dict[str, Any]:
+              cancel: Event | None = None, label: str = "probe", fly_tokens: str = "forced",
+              save_vectors: bool = True, save_plots: bool = True) -> dict[str, Any]:
     """One controlled Clean / Fly / Fly-off run on the engine's live coupling and reservoir.
 
+    fly_tokens="forced": Fly is fed the same ids as Clean (controlled; KL(Clean||Fly) per step).
+    fly_tokens="free": Fly chooses its own greedy tokens through the same forward path; Clean
+    generates its own greedy text separately. Their histories differ, so no Clean-vs-Fly logit
+    metric is computed; the immediate Fly-off vs Fly comparison stays valid (same Fly history).
     The reservoir starts from its current state (call new_session() or reset_state() first for a
     zero start). Its final state is the state after the Fly pass, as in any Fly generation.
     """
+    if fly_tokens not in {"forced", "free"}:
+        raise ValueError("fly_tokens must be 'forced' or 'free'")
     cancel = cancel or Event()
     from .observatory_engine import ChatSession
     with engine._lock:
@@ -245,14 +252,18 @@ def run_probe(engine: Any, prompt: str, max_tokens: int = 48, output: Path | Non
         coupling.observer = observer
         initial_state = engine.reservoir.state.copy()
         try:
-            fly = _forced_loop(engine, ids, tokens, len(tokens), coupling, observer, counterfactual, cancel)
+            fly = _forced_loop(engine, ids, tokens if fly_tokens == "forced" else None,
+                               len(tokens) if fly_tokens == "forced" else max_tokens,
+                               coupling, observer, counterfactual, cancel)
         finally:
             coupling.observer = None
         info = engine.coupling_info()
         model = {key: value for key, value in engine.model_info().items() if not key.startswith("gpu_")}
         metadata = {"label": label, "created_utc": datetime.now(timezone.utc).isoformat(), "prompt": prompt,
-                    "prompt_token_ids": plan.ids[0].tolist(), "token_ids": tokens,
-                    "token_source": "forced (given)" if forced_tokens is not None else "Clean greedy continuation",
+                    "prompt_token_ids": plan.ids[0].tolist(), "token_ids": fly["tokens"],
+                    "clean_token_ids": tokens, "fly_tokens": fly_tokens,
+                    "token_source": ("forced (given)" if forced_tokens is not None else "Clean greedy continuation")
+                    if fly_tokens == "forced" else "Fly free greedy generation (Clean generated separately)",
                     "steps": len(fly["logits"]), "cancelled": cancel.is_set(), "model": model, "coupling": info,
                     "settings": {key: getattr(engine.config, key) for key in
                                  ("strength", "feedback", "steering_enabled", "feedback_enabled", "leak_rate")},
@@ -275,13 +286,17 @@ def run_probe(engine: Any, prompt: str, max_tokens: int = 48, output: Path | Non
                     "steering_vector": "centered = compact @ decoder - mean; the applied delta is a positive "
                                        "multiple of it (strength * RMS(h) / max(RMS(centered), 1))",
                     "undefined_values": UNDEFINED}
-        analysis = analyse(observer.passes, clean["logits"], fly["logits"], fly["off_logits"], coupling)
+        analysis = analyse(observer.passes, clean["logits"] if fly_tokens == "forced" else [], fly["logits"],
+                           fly["off_logits"], coupling)
         metadata["reference_steps"] = analysis["reference_steps"]
         metadata["geometry"] = analysis["geometry"]
-        metadata["tokens_text"] = [engine.llm.tokenizer.decode([t]) for t in tokens]
+        metadata["tokens_text"] = [engine.llm.tokenizer.decode([t]) for t in fly["tokens"]]
+        metadata["fly_text"] = engine.llm.tokenizer.decode(fly["tokens"], skip_special_tokens=True)
+        metadata["clean_text"] = engine.llm.tokenizer.decode(tokens, skip_special_tokens=True)
         if output is not None:
-            save(Path(output), metadata, analysis)
+            save(Path(output), metadata, analysis, save_vectors, save_plots)
         return {"metadata": metadata, "rows": analysis["rows"], "summary": analysis["summary"],
+                "vectors": analysis["vectors"],
                 "output": str(output) if output is not None else None}
 
 
@@ -369,10 +384,11 @@ def analyse(passes: list[dict[str, Any]], clean_logits: list, fly_logits: list, 
                         "logit_diff_l2": m["logit_diff_l2"]})
         if step < len(off_logits):
             immediate = distribution_metrics(off_logits[step], fly_logits[step])
-            history = distribution_metrics(clean_logits[step], off_logits[step])
             row.update({"kl_off_fly_immediate": immediate["kl"], "top1_changed_immediate": immediate["top1_changed"],
-                        "logit_diff_l2_immediate": immediate["logit_diff_l2"],
-                        "kl_clean_off_history": history["kl"], "top1_changed_history": history["top1_changed"]})
+                        "logit_diff_l2_immediate": immediate["logit_diff_l2"]})
+            if step < len(clean_logits):  # only with identical token histories (forced mode)
+                history = distribution_metrics(clean_logits[step], off_logits[step])
+                row.update({"kl_clean_off_history": history["kl"], "top1_changed_history": history["top1_changed"]})
         rows.append(row)
     stacked = {key: np.asarray(value) for key, value in vectors.items() if value}
     geometry = {"steering": spectrum(stacked["steering"]) if "steering" in stacked else None,
@@ -416,10 +432,13 @@ def summarize(rows: list[dict], geometry: dict) -> dict[str, Any]:
 COLUMNS_FIRST = ("step", "token_id", "token_text")
 
 
-def save(output: Path, metadata: dict[str, Any], analysis: dict[str, Any]) -> None:
+def save(output: Path, metadata: dict[str, Any], analysis: dict[str, Any], save_vectors: bool = True,
+         save_plots: bool = True) -> None:
     if output.exists():
         raise FileExistsError(f"{output} exists; probe outputs are never overwritten")
-    (output / "plots").mkdir(parents=True)
+    output.mkdir(parents=True)
+    if save_plots:
+        (output / "plots").mkdir()
     rows = analysis["rows"]
     for row in rows:
         step = row["step"]
@@ -431,16 +450,18 @@ def save(output: Path, metadata: dict[str, Any], analysis: dict[str, Any]) -> No
         writer.writeheader()
         for row in rows:
             writer.writerow({k: ("" if isinstance(v, float) and not math.isfinite(v) else v) for k, v in row.items()})
-    vectors = analysis["vectors"]
-    np.savez_compressed(output / "reservoir_states.npz",
+    vectors = analysis["vectors"] if save_vectors else {}
+    if vectors:
+        np.savez_compressed(output / "reservoir_states.npz",
                         **{key: vectors[key] for key in ("state_before", "state_used", "state_after", "input")
                            if key in vectors})
-    np.savez_compressed(output / "steering_vectors.npz",
+        np.savez_compressed(output / "steering_vectors.npz",
                         **{key: vectors[key] for key in ("compact", "steering", "applied_delta") if key in vectors})
     (output / "metadata.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2, default=float) + "\n",
                                           encoding="utf-8")
     (output / "summary.json").write_text(json.dumps(analysis["summary"], indent=2) + "\n")
-    plot(output / "plots", rows, metadata)
+    if save_plots:
+        plot(output / "plots", rows, metadata)
     (output / "summary.md").write_text(markdown(metadata, analysis["summary"]), encoding="utf-8")
 
 

@@ -6,6 +6,16 @@ All notable changes to this project are documented here. Versions follow
 ## [Unreleased]
 
 ### Added
+- Research plugins (`docs/RESEARCH_PLUGINS.md`).
+  - `leak_rate_dynamics.py` runs controlled or free probes at several leak rates.
+    - Optional fixed warm-up and idle retention.
+    - Actual versus configured steering size.
+    - Offline unit-norm direction analysis.
+  - `dopamine_field_prototype.py` is a shadow-mode marker-proxy reaction-diffusion field driven
+    by the DA-classified neurons, with hypothetical local leak values that are never applied.
+    It includes an anatomy availability audit.
+  - Plugin API: `advance_idle`, `set_output_name` and `graph_dir`; free-generation and
+    optional-output options in `steering_probe`.
 - Read-only steering diagnostics (`steering_diagnostics.py`).
   - An optional observer on the coupling records reservoir states, readout and steering vectors,
     applied deltas, and Clean / Fly / immediate-counterfactual logit metrics per token.

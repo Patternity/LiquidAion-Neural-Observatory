@@ -76,6 +76,7 @@ class ExperimentAPI:
         self.script = Path(script)
         self._output_root = Path(output_root)
         self._output_dir: Path | None = None
+        self._output_name: str | None = None
         self.sessions_touched = False
         self.saved: list[str] = []
 
@@ -176,19 +177,41 @@ class ExperimentAPI:
         return {**summary, "output": str(directory)}
 
     def steering_probe(self, prompt: str, max_tokens: int = 48, name: str | None = None,
-                       forced_tokens: list[int] | None = None, counterfactual: bool = True) -> dict[str, Any]:
+                       forced_tokens: list[int] | None = None, counterfactual: bool = True,
+                       fly_tokens: str = "forced", save_vectors: bool = True, save_plots: bool = True,
+                       directory: Path | None = None) -> dict[str, Any]:
         """Read-only steering diagnostics on the live coupling (steering_diagnostics.run_probe).
 
         Clean and Fly see the same token ids (Clean's greedy continuation unless forced_tokens);
         with counterfactual=True each step is also run uncoupled on a copy of the Fly cache.
         The reservoir starts from its current state: call new_session() first for a zero start.
-        Writes metrics, vectors, plots and summary.md to <output_dir>/<name>/.
+        fly_tokens="free" lets Fly generate its own greedy tokens (no Clean-vs-Fly logit metrics).
+        Writes metrics, optional vectors and plots, and summary.md to <output_dir>/<name>/
+        (or a new subdirectory of ``directory``).
         """
         from .steering_diagnostics import run_probe
         self.check_cancelled()
-        directory = self._unique(self.output_dir / self._name(name or "probe"))
+        directory = self._unique(Path(directory or self.output_dir) / self._name(name or "probe"))
         return run_probe(self._engine, prompt, max_tokens, directory, forced_tokens, counterfactual,
-                         self._cancel, label=directory.name)
+                         self._cancel, label=directory.name, fly_tokens=fly_tokens, save_vectors=save_vectors,
+                         save_plots=save_plots)
+
+    def advance_idle(self, steps: int = 1) -> dict[str, Any]:
+        """Advance the shared reservoir by idle steps (no input; the GUI's idle dynamics).
+
+        Each step is one reservoir update of dt simulation time, NOT a model token. Returns a
+        copy of the resulting state (see get_reservoir_state)."""
+        if not isinstance(steps, int) or steps < 0:
+            raise ValueError("steps must be a non-negative integer")
+        self.check_cancelled()
+        self._engine.idle_tick(steps)
+        return self.get_reservoir_state()
+
+    def set_output_name(self, name: str) -> None:
+        """Use results/plugins/<name>/<time>/ instead of the script's file name (before first output)."""
+        if self._output_dir is not None:
+            raise RuntimeError("The output directory already exists")
+        self._output_name = self._name(name)
 
     def load_model(self, profile: str, bypasses: list | None = None) -> dict[str, Any]:
         """Switch the language model (no-op if already loaded with these bypasses); resets state and chats."""
@@ -214,6 +237,11 @@ class ExperimentAPI:
         return {"state": state, "rms": float(np.sqrt(np.mean(state ** 2))), "simulation_time": reservoir.time,
                 "leak": reservoir.leak, "fingerprint": reservoir.fingerprint, "neurons": len(state)}
 
+    @property
+    def graph_dir(self) -> Path:
+        """The loaded connectome directory (nodes.csv, edges.csv); read-only use."""
+        return Path(self._engine.graph_dir)
+
     def _model(self) -> dict[str, Any]:
         info = self._engine.model_info()
         return {key: value for key, value in info.items() if not key.startswith("gpu_")}
@@ -225,7 +253,8 @@ class ExperimentAPI:
         """results/plugins/<script name>/<start time>/, created on first use, never reused."""
         if self._output_dir is None:
             stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            self._output_dir = self._unique(self._output_root / self._name(self.script.stem) / stamp)
+            self._output_dir = self._unique(self._output_root / (self._output_name or self._name(self.script.stem))
+                                            / stamp)
             self._output_dir.mkdir(parents=True)
         return self._output_dir
 

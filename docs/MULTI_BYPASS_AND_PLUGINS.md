@@ -164,6 +164,8 @@ chat histories, the chat panes are cleared.
 | `api.save_result(name, result, extra=None, overwrite=False)` | Write `<run dir>/<name>.json`. It contains the result plus the model, coupling, settings, reservoir summary and session id. Existing files are never replaced unless `overwrite=True`. |
 | `api.steering_probe(prompt, max_tokens, name, forced_tokens, counterfactual)` | Read-only per-token steering diagnostics; see [STEERING_DIAGNOSTICS.md](STEERING_DIAGNOSTICS.md). |
 | `api.load_model(profile, bypasses=None)` | Switch the language model, as the Load button does; this resets the reservoir and the chats. |
+| `api.advance_idle(steps=1)` | Idle reservoir updates without input, as in the GUI's idle dynamics. Each step is dt of simulation time, not a token. Returns a state copy. |
+| `api.set_output_name(name)`, `api.graph_dir` | Name the results folder (call it before the first output); read the connectome directory. |
 | `api.log(message)` | Add a line to the plugin log. |
 | `api.is_cancelled()`, `api.check_cancelled()` | Cooperative cancellation. |
 | `api.output_dir` | The run directory. You may write other files there with ordinary Python. |
