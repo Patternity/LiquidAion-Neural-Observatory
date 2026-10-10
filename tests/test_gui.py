@@ -458,25 +458,61 @@ def test_model_coupling_ranges_follow_layer_count_and_allow_any_order(window):
     window.command.connect(lambda command, payload: calls.append((command, payload)))
     panel = window.model_panel
     window.show_model(model_info())
+    assert len(panel.rows) == 1, "A single bypass row is the default"
     assert (panel.capture.minimum(), panel.capture.maximum()) == (0, 27)
     assert (panel.steer.minimum(), panel.steer.maximum()) == (0, 27)
-    assert panel.capture_max.text() == "/ 27" and "hidden size:   1024" in panel.dimensions.text()
-    assert panel.order.text().startswith("Order: capture → steering")
+    assert "0…27" in panel.layer_range.text() and "hidden size:   1024" in panel.dimensions.text()
+    assert "Legacy single bypass" in panel.order.text() and "capture → steering" in panel.order.text()
     panel.capture.setValue(20)
     assert panel.steer.value() == 14, "Steering is never moved by the capture control"
-    assert calls[-1] == ("configure", {"capture_layer": 20, "steer_layer": 14})
+    assert calls[-1] == ("configure", {"bypasses": [[20, 14, True]]})
     assert panel.state.text().startswith("Pending") and "steering first" in panel.order.text()
-    window.on_finished("configure", {"capture_layer": 20, "steer_layer": 14})
+    window.on_finished("configure", {"capture_layer": 20, "steer_layer": 14, "bypasses": [[20, 14, True]]})
     assert panel.state.text() == "Applied: 20 → 14"
     assert int(window.preferences.value("model/qwen3-0.6b/capture_layer")) == 20
     panel.steer.setValue(20)
-    assert calls[-1] == ("configure", {"capture_layer": 20, "steer_layer": 20}) and "same layer" in panel.order.text()
+    assert calls[-1] == ("configure", {"bypasses": [[20, 20, True]]}) and "same layer" in panel.order.text()
     window.show_model(model_info("qwen3-4b-base", 36, 2560, 8, 18, "base"))
-    assert panel.capture.maximum() == 35 and panel.steer.maximum() == 35 and panel.capture_max.text() == "/ 35"
+    assert panel.capture.maximum() == 35 and panel.steer.maximum() == 35 and "0…35" in panel.layer_range.text()
     assert "Raw continuation" in panel.interaction.text() and "Raw text" in window.prompt.placeholderText()
     window._set_busy(True)
     assert not panel.capture.isEnabled() and not panel.load.isEnabled(), "No layer or model changes mid-generation"
     window._set_busy(False)
+
+
+def test_bypass_rows_add_edit_remove_update_the_engine(window):
+    calls = []
+    window.command.connect(lambda command, payload: calls.append((command, payload)))
+    panel = window.model_panel
+    window.show_model(model_info())
+    assert not panel.rows[0].remove.isEnabled(), "The last row cannot be removed"
+    panel.add.click()
+    assert len(panel.rows) == 2 and calls[-1] == ("configure", {"bypasses": [[6, 14, True], [6, 14, False]]})
+    second = panel.rows[1]
+    second.capture.setValue(20)
+    second.steer.setValue(5)
+    second.enabled.setChecked(True)
+    assert calls[-1] == ("configure", {"bypasses": [[6, 14, True], [20, 5, True]]})
+    assert "Active: 2 bypasses" in panel.order.text() and "Synchronous Multi-Bypass" in panel.order.text()
+    assert second.direction.text() == "backward"
+    window.on_finished("configure", {"capture_layer": 6, "steer_layer": 14, "bypasses": [[6, 14, True], [20, 5, True]]})
+    assert panel.state.text() == "Applied: 6 → 14, 20 → 5"
+    assert json.loads(window.preferences.value("model/qwen3-0.6b/bypasses")) == [[6, 14, True], [20, 5, True]]
+    panel.add.click()
+    panel.rows[2].enabled.setChecked(True)
+    assert "1 duplicate row applied once" in panel.order.text(), "Identical rows are flagged, not double-applied"
+    for row in list(panel.rows):
+        row.enabled.setChecked(False)
+    assert panel.state.text().startswith("Not applied"), "At least one bypass must stay enabled"
+    sent = len(calls)
+    panel.rows[0].enabled.setChecked(True)
+    panel.rows[2].remove.click()
+    assert len(panel.rows) == 2 and calls[-1] == ("configure", {"bypasses": [[6, 14, True], [20, 5, False]]})
+    assert len(calls) > sent
+    window._set_busy(True)
+    assert not panel.add.isEnabled() and not panel.rows[0].capture.isEnabled() and not panel.rows[1].remove.isEnabled()
+    window._set_busy(False)
+    assert panel.add.isEnabled() and panel.rows[1].remove.isEnabled()
 
 
 def test_model_switch_requires_confirmation_and_persists_choice(window):
@@ -491,7 +527,7 @@ def test_model_switch_requires_confirmation_and_persists_choice(window):
     window.confirm_model_switch = lambda display: True
     window.model_panel.combo.setCurrentIndex(window.model_panel.combo.findData("qwen3-1.7b-base"))
     window.model_panel.load.click()
-    assert calls[-1] == ("switch_model", {"profile": "qwen3-1.7b-base", "capture": 6, "steer": 14})
+    assert calls[-1] == ("switch_model", {"profile": "qwen3-1.7b-base", "bypasses": [[6, 14, True]]})
     assert window.preferences.value("model/profile") == "qwen3-1.7b-base"
     assert not window.send.isEnabled()
     window.open_continuous()
@@ -519,3 +555,33 @@ def test_saved_model_preference_applies_at_launch(app, tmp_path):
     assert (apply_preferences(ObservatoryConfig(), preferences).steer_layer) == 4, "Reversed pairs are kept"
     preferences.setValue("model/profile", "unknown-model")
     assert apply_preferences(ObservatoryConfig(), preferences).model_profile == "qwen3-0.6b"
+
+
+def test_plugin_runs_on_the_worker_and_failures_restore_the_controls(window, app, monkeypatch, tmp_path):
+    from conftest import build_engine
+    engine = build_engine(monkeypatch, tmp_path)
+    worker = EngineWorker(ObservatoryConfig(), "unused", "unused")
+    worker.engine = engine
+    lines, finished = [], []
+    worker.plugin_log.connect(lines.append)
+    worker.finished.connect(lambda command, result: finished.append((command, result)))
+    path = tmp_path / "tiny.py"
+    path.write_text("def run(api):\n    api.log(api.generate('Hi', max_tokens=1).text)\n")
+    worker.execute("plugin", {"path": str(path), "output_root": str(tmp_path / "out")})
+    assert finished[-1][0] == "plugin" and finished[-1][1]["status"] == "finished" and not worker.busy
+    assert any(line.startswith("Running tiny.py") for line in lines) and len(lines) >= 3
+    calls = []
+    window.command.connect(lambda command, payload: calls.append((command, payload)))
+    window.show_model(model_info())
+    window.run_plugin(str(path), output_root=tmp_path / "out")
+    assert calls[-1] == ("plugin", {"path": str(path), "output_root": str(tmp_path / "out")})
+    assert not window.send.isEnabled() and not window.plugin_run.isEnabled() and window.plugin_stop.isEnabled()
+    assert not window.model_panel.add.isEnabled(), "No coupling changes while a script owns the engine"
+    window.on_plugin_log("line from the script")
+    window.plugin_stop.click()
+    window.on_finished("plugin", {"status": "error", "error": "tiny.py failed: RuntimeError: x", "model": model_info(),
+                                  "sessions_touched": True})
+    assert window.send.isEnabled() and window.plugin_run.isEnabled() and not window.plugin_stop.isEnabled()
+    assert "ERROR" in window.plugin_status.text() and "line from the script" in window.plugin_log.toPlainText()
+    assert "tiny.py failed" in window.experiment_result.toPlainText()
+    shiboken6.delete(worker)

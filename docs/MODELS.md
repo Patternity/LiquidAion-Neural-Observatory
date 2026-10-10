@@ -57,8 +57,9 @@ generative substrate.
 
 ## Choosing capture and steering layers
 
-The **MODEL COUPLING** panel in the main window exposes the two existing attachment points.
-No other hooks exist.
+The **MODEL COUPLING · NEURAL BYPASS** panel in the main window lists one or more capture →
+steering pairs. This section describes a single pair, which runs the original coupling. For
+several simultaneous pairs, see [MULTI_BYPASS_AND_PLUGINS.md](MULTI_BYPASS_AND_PLUGINS.md).
 
 - **Capture layer.** The last-token hidden state at the output of this decoder layer is
   normalized and projected to 64 reservoir features.

@@ -12,3 +12,5 @@ models/
 results/debug/
 *.session.json
 liquidaion-session*.json
+# Python plugin results (personal experiment output)
+results/plugins/

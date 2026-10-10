@@ -6,6 +6,19 @@ All notable changes to this project are documented here. Versions follow
 ## [Unreleased]
 
 ### Added
+- Multi-Bypass: several capture → steering layer pairs at once, sharing one FlyWire reservoir.
+  - One active pair keeps the legacy coupling unchanged.
+  - Two or more run the Synchronous Multi-Bypass mode: steering from the pre-token state, mean
+    capture and feedback per unique layer, one reservoir update per token, next-token coupling.
+  - One hook per unique layer. Duplicate rows and row order do not change execution.
+  - The configuration is recorded as `bypasses`, `active_bypasses`, `coupling_mode` and
+    `reservoir_updates_per_token`.
+  - See `docs/MULTI_BYPASS_AND_PLUGINS.md`.
+- Python plugins: "Run Python Script…" executes a trusted `run(api)` script on the engine worker,
+  with cooperative Stop.
+  - `ExperimentAPI`: bypasses, coupling, new session/reset, generate, continuous runs, state
+    copies and saved results under `results/plugins/`.
+  - Examples in `plugins/examples/`.
 - Four selectable language substrates with pinned revisions (`liquidaion_fly.models`):
   - Qwen3-0.6B (instruct, the unchanged baseline);
   - Qwen3-0.6B-Base and Qwen3-1.7B-Base (bfloat16);

@@ -4,7 +4,7 @@ import pytest
 import torch
 from scipy import sparse
 from transformers import Qwen3Config, Qwen3ForCausalLM
-from liquidaion_fly.llm import Coupling, compare_logits
+from liquidaion_fly.llm import Coupling, SynchronousCoupling, compare_logits
 from liquidaion_fly.reservoir import Reservoir
 
 
@@ -154,3 +154,90 @@ def test_coupling_rejects_layers_outside_the_model(model):
     with pytest.raises(ValueError):
         c.attach(model)
     assert not c.handles
+
+
+def synchronous(bypasses, feedback=0.25, strength=0.4):
+    graph = sparse.csr_matrix([[0., 2., 0.], [0., 0., 4.], [3., 0., 0.]])
+    return SynchronousCoupling(Reservoir(graph, features=8), 32, bypasses, strength, feedback)
+
+
+def run_tokens(model, coupling, tokens=3):
+    """Prefill plus cached decode steps; returns last-position logits per pass."""
+    logits = []
+    with torch.inference_mode():
+        coupling.attach(model)
+        try:
+            out = model(torch.tensor([[1, 2, 3, 4]]), use_cache=True)
+            logits.append(out.logits[0, -1].clone())
+            for token in range(5, 5 + tokens - 1):
+                out = model(torch.tensor([[token]]), past_key_values=out.past_key_values, use_cache=True)
+                logits.append(out.logits[0, -1].clone())
+        finally:
+            coupling.detach()
+    return torch.stack(logits)
+
+
+@pytest.mark.parametrize("bypasses", [[(0, 2)], [(0, 2), (2, 0)], [(0, 2), (1, 1), (2, 0), (1, 2)]])
+def test_synchronous_one_update_per_token_from_the_pre_token_state(model, bypasses):
+    c = synchronous(bypasses)
+    advances, steering_states, features = [], [], []
+    advance, intervene, project = c.reservoir.advance, c._intervene, c.features
+    c.reservoir.advance = lambda u, **k: (advances.append((c.reservoir.state.copy(), np.array(u))), advance(u, **k))[1]
+    c._intervene = lambda h, state: (steering_states.append(state.copy()), intervene(h, state))[1]
+    c.features = lambda h: (features.append(project(h)), features[-1])[1]
+    run_tokens(model, c, tokens=3)
+    assert len(advances) == 3, "Exactly one reservoir update per token, whatever the bypass count"
+    assert len(c.records) == 3 and all(r["reservoir_updates"] == 1 for r in c.records)
+    per_pass = len(c.steer_layers)
+    for step, (before, u) in enumerate(advances):
+        # Every steering layer of a pass read the state from before that pass.
+        for state in steering_states[step * per_pass:(step + 1) * per_pass]:
+            np.testing.assert_array_equal(state, before)
+        np.testing.assert_array_equal(c.states[step], before)
+    # Features per pass in layer order: capture (pre-steering) then feedback (steered) per layer.
+    per_layer = [("capture",) * (i in c.capture_layers) + ("feedback",) * (i in c.steer_layers) for i in c.hooked_layers]
+    kinds = [kind for layer in per_layer for kind in layer]
+    for step, (_, u) in enumerate(advances):
+        chunk = features[step * len(kinds):(step + 1) * len(kinds)]
+        captured = np.mean([f for f, k in zip(chunk, kinds) if k == "capture"], axis=0)
+        fed = np.mean([f for f, k in zip(chunk, kinds) if k == "feedback"], axis=0)
+        np.testing.assert_allclose(u, captured + c.feedback * fed, rtol=1e-12, atol=0)
+    assert all(len(layer._forward_hooks) == 0 for layer in model.model.layers)
+
+
+def test_synchronous_results_ignore_row_order_duplicates_and_pairing(model):
+    rows = [(0, 2), (1, 1), (2, 0)]
+    reference = synchronous(rows)
+    expected = run_tokens(model, reference)
+    variants = [rows[::-1], [rows[1], rows[2], rows[0], rows[1], rows[1]],
+                # Same capture and steering layer sets with different pairings: equivalent by design.
+                [(0, 0), (1, 2), (2, 1)]]
+    for variant in variants:
+        c = synchronous(variant)
+        torch.testing.assert_close(run_tokens(model, c), expected, rtol=0, atol=0)
+        np.testing.assert_array_equal(c.reservoir.state, reference.reservoir.state)
+        np.testing.assert_array_equal(np.stack(c.states), np.stack(reference.states))
+
+
+def test_synchronous_hooks_once_per_unique_layer_and_cleans_up_after_errors(model):
+    c = synchronous([(1, 1), (1, 2), (1, 2)])
+    assert c.bypasses == [(1, 1), (1, 2)] and c.hooked_layers == [1, 2]
+    c.attach(model)
+    assert [len(layer._forward_hooks) for layer in model.model.layers] == [0, 1, 1]
+    with pytest.raises(RuntimeError):
+        c.attach(model)
+    c.detach()
+    state = c.reservoir.state.copy()
+
+    def explode(*args):
+        raise FloatingPointError("simulated failure inside the pass")
+    c._intervene = explode
+    c.attach(model)
+    with torch.inference_mode(), pytest.raises(FloatingPointError):
+        model(torch.tensor([[1, 2, 3]]))
+    c.detach()
+    assert all(len(layer._forward_hooks) == 0 for layer in model.model.layers)
+    np.testing.assert_array_equal(c.reservoir.state, state), "An interrupted pass never updates the reservoir"
+    graph = sparse.csr_matrix([[0., 2., 0.], [0., 0., 4.], [3., 0., 0.]])
+    with pytest.raises(ValueError):
+        SynchronousCoupling(Reservoir(graph, features=8), 32, [(0, 3), (1, 1)]).attach(model)

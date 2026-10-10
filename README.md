@@ -181,7 +181,8 @@ see different contexts.
 | **Export dashboard** | Writes a screenshot, the anatomy image, telemetry, conversations and experiment results. |
 | **Pause view** | Freezes rendering only. The dynamics keep running. |
 | **LANGUAGE MODEL** | Selects the substrate: Qwen3-0.6B (Instruct, the original baseline), Qwen3-0.6B-Base, Qwen3-1.7B-Base or Qwen3-4B-Base (NF4). **Load** unloads the current model, downloads the new one once if needed, resets the reservoir state and clears the chats. The connectome is never changed. |
-| **MODEL COUPLING · Capture / Steering layer** | The two hook points, zero-based, limited to the loaded model's layers (capture < steering). Hidden size and projections adapt automatically. Changes apply before the next operation and keep the reservoir state. See [docs/MODELS.md](docs/MODELS.md). |
+| **MODEL COUPLING · NEURAL BYPASS** | One or more capture → steering layer pairs (zero-based, any direction), all sharing one reservoir. One pair runs the original coupling; several run the Synchronous Multi-Bypass mode. Hidden size and projections adapt automatically. Changes apply before the next operation and keep the reservoir state. See [docs/MODELS.md](docs/MODELS.md) and [docs/MULTI_BYPASS_AND_PLUGINS.md](docs/MULTI_BYPASS_AND_PLUGINS.md). |
+| **Run Python Script…** | Runs a trusted local `.py` file defining `run(api)` against the live engine, with full user permissions and no sandbox. Stop requests cooperative cancellation. See [docs/MULTI_BYPASS_AND_PLUGINS.md](docs/MULTI_BYPASS_AND_PLUGINS.md). |
 | **RESERVOIR DYNAMICS · Leak rate** | Leak dt/tau of the reservoir update (baseline 0.200, range 0.005–0.5). It changes the live equation from the next update and keeps the state. Smaller: slower change and potentially longer persistence. Larger: faster response. |
 | **Run controlled comparison** / **A · B · C** | Run the experiments below on temporary copies. The live chats and state are not affected. |
 

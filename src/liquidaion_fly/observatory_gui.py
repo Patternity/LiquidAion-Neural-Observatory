@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDoubleSpinBo
     QVBoxLayout, QWidget)
 
 from .brain_view import BrainView
+from .bypass import active_bypasses, normalize_bypasses
 from .model_gui import ModelPanel
 from .models import PROFILES, get_profile
 
@@ -48,13 +49,12 @@ def apply_preferences(config, preferences):
     if hasattr(config, "model_profile"):
         profile = str(preferences.value("model/profile", config.model_profile))
         if profile in PROFILES:
-            capture, steer = saved_layers(preferences, profile)
-            config = replace(config, model_profile=profile, capture_layer=capture, steer_layer=steer)
+            config = replace(config, model_profile=profile, bypasses=saved_bypasses(preferences, profile))
     return config
 
 
 def saved_layers(preferences, profile_key):
-    """The operator's last applied layer pair for a profile, or the profile defaults."""
+    """The operator's last applied single layer pair for a profile, or the profile defaults."""
     profile = get_profile(profile_key)
     try:
         capture = int(preferences.value(f"model/{profile_key}/capture_layer", profile.capture_layer))
@@ -62,6 +62,18 @@ def saved_layers(preferences, profile_key):
         return (capture, steer) if min(capture, steer) >= 0 else (profile.capture_layer, profile.steer_layer)
     except (TypeError, ValueError):
         return profile.capture_layer, profile.steer_layer
+
+
+def saved_bypasses(preferences, profile_key):
+    """The operator's last applied bypass rows for a profile; else the saved single pair or defaults."""
+    try:
+        rows = normalize_bypasses(json.loads(str(preferences.value(f"model/{profile_key}/bypasses", ""))))
+        if active_bypasses(rows):
+            return rows
+    except (TypeError, ValueError, KeyError, json.JSONDecodeError):
+        pass
+    capture, steer = saved_layers(preferences, profile_key)
+    return [[capture, steer, True]]
 
 
 STYLE = """
@@ -127,6 +139,7 @@ class EngineWorker(QObject):
     error = Signal(str)
     stopped = Signal()
     continuous_progress = Signal(dict)
+    plugin_log = Signal(str)
 
     def __init__(self, config, model_path, graph_dir, device="cpu", replay_path=None, debug_log=None):
         super().__init__()
@@ -255,7 +268,8 @@ class EngineWorker(QObject):
             elif command == "configure":
                 result = self.engine.configure(**payload)
             elif command == "switch_model":
-                result = self.engine.switch_model(payload["profile"], payload.get("capture"), payload.get("steer"))
+                result = self.engine.switch_model(payload["profile"], payload.get("capture"), payload.get("steer"),
+                                                  bypasses=payload.get("bypasses"))
             elif command in {"reset_state", "clear_chats", "new_session"}:
                 self.replay = None
                 result = getattr(self.engine, command)()
@@ -268,6 +282,12 @@ class EngineWorker(QObject):
                 result = self.engine.scientific_compare(payload["prompt"], comparison=payload["comparison"], max_tokens=payload["tokens"], cancel_event=self.cancel_event, on_telemetry=self.publish)
             elif command == "continuous":
                 result = self._continuous(payload)
+            elif command == "plugin":
+                # Trusted local script; owns the engine on this thread until it returns.
+                from .plugins import run_plugin
+                result = run_plugin(self.engine, payload["path"], self.cancel_event, self.plugin_log.emit,
+                                    on_telemetry=self.publish, **({"output_root": Path(payload["output_root"])}
+                                                                  if payload.get("output_root") else {}))
             elif command.startswith("demo_"):
                 if command == "demo_persistence":
                     result = self.engine.demo_persistence(prompt_a=payload, cancel_event=self.cancel_event, on_telemetry=self.publish)
@@ -474,6 +494,7 @@ class ObservatoryWindow(QMainWindow):
             self.worker.replay_chat.connect(self.on_replay_chat)
             self.worker.replay_result.connect(self.on_replay_result)
             self.worker.finished.connect(self.on_finished)
+            self.worker.plugin_log.connect(self.on_plugin_log)
             self.worker.error.connect(self.on_error)
             self.worker.stopped.connect(self.thread.quit, Qt.DirectConnection)
             self.thread.finished.connect(self.worker.deleteLater)
@@ -583,7 +604,7 @@ class ObservatoryWindow(QMainWindow):
         dynamics_layout.addWidget(leak_help)
         self.model_panel = ModelPanel(getattr(config, "model_profile", "qwen3-0.6b"))
         self.model_panel.load_requested.connect(self.request_model)
-        self.model_panel.layers_requested.connect(self.request_layers)
+        self.model_panel.bypasses_requested.connect(self.request_bypasses)
         side_layout.addWidget(self.model_panel)
         coupling_column = QVBoxLayout()
         coupling_column.addWidget(controls)
@@ -652,6 +673,26 @@ class ObservatoryWindow(QMainWindow):
         self.continuous_button.clicked.connect(self.open_continuous)
         exp_layout.addWidget(self.continuous_button)
         self.continuous_dialog = None
+        plugin_row = QHBoxLayout()
+        self.plugin_run = QPushButton("Run Python Script…")
+        self.plugin_run.setToolTip("Run a trusted local .py file defining run(api) against this engine. "
+                                   "It executes with your full user permissions; there is no sandbox.")
+        self.plugin_run.clicked.connect(self.choose_plugin)
+        self.plugin_stop = QPushButton("Stop script")
+        self.plugin_stop.setToolTip("Request cooperative cancellation: generation stops at the next token and "
+                                    "api.check_cancelled() raises. Arbitrary code cannot be forcibly stopped.")
+        self.plugin_stop.clicked.connect(self.cancel_generation)
+        self.plugin_status = QLabel("Plugin: idle")
+        self.plugin_status.setStyleSheet("color:#8c9fbd;font-size:10px")
+        plugin_row.addWidget(self.plugin_run, 1)
+        plugin_row.addWidget(self.plugin_stop)
+        exp_layout.addLayout(plugin_row)
+        exp_layout.addWidget(self.plugin_status)
+        self.plugin_log = QTextEdit()
+        self.plugin_log.setReadOnly(True)
+        self.plugin_log.setMaximumHeight(110)
+        self.plugin_log.setPlaceholderText("Plugin log")
+        exp_layout.addWidget(self.plugin_log)
         self.science_details = QCheckBox("Review full result and traces")
         self.science_details.toggled.connect(self.render_science_result)
         exp_layout.addWidget(self.science_details)
@@ -733,8 +774,10 @@ class ObservatoryWindow(QMainWindow):
     def _set_busy(self, busy):
         enabled = not busy and not self.is_replay
         for widget in (self.send, self.scientific, self.steering, self.feedback, self.strength, self.feedback_strength,
-                       self.max_tokens, self.context_tokens, self.continuous_button, self.leak, *self.demo_buttons):
+                       self.max_tokens, self.context_tokens, self.continuous_button, self.leak, self.plugin_run,
+                       *self.demo_buttons):
             widget.setEnabled(enabled)
+        self.plugin_stop.setEnabled(busy and self.active_operation == "plugin")
         self.model_panel.set_enabled(enabled)
         self.cancel.setEnabled(busy and not self.is_replay)
 
@@ -833,14 +876,14 @@ class ObservatoryWindow(QMainWindow):
             return
         self.preferences.setValue("model/profile", key)
         self.preferences.sync()
-        capture, steer = saved_layers(self.preferences, key)
+        rows = saved_bypasses(self.preferences, key)
         self._set_busy(True)
         self.active_operation = "switch_model"
         self.status.setText(f"LOADING MODEL · {profile.display} · downloading once if not cached")
-        self.command.emit("switch_model", {"profile": key, "capture": capture, "steer": steer})
+        self.command.emit("switch_model", {"profile": key, "bypasses": rows})
 
-    def request_layers(self, capture, steer):
-        self.command.emit("configure", {"capture_layer": capture, "steer_layer": steer})
+    def request_bypasses(self, rows):
+        self.command.emit("configure", {"bypasses": rows})
 
     def configure(self):
         self.command.emit("configure", {"steering_enabled": self.steering.isChecked(),
@@ -971,8 +1014,46 @@ class ObservatoryWindow(QMainWindow):
         self.status.setText(f"CONTINUOUS · {payload['condition']} · window {payload['window']} · {payload['total_tokens']} tokens")
         self.command.emit("continuous", payload)
 
+    def choose_plugin(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Run trusted Python script", str(Path.cwd() / "plugins"),
+                                              "Python script (*.py)")
+        if path:
+            self.run_plugin(path)
+
+    def run_plugin(self, path, output_root=None):
+        if not self.live_engine_available or not self.send.isEnabled():
+            self.on_error("Stop or finish the current operation before running a script")
+            return
+        self.active_operation = "plugin"
+        self._set_busy(True)
+        self.plugin_log.clear()
+        self.plugin_status.setText(f"Plugin: RUNNING · {Path(path).name}")
+        self.status.setText(f"PLUGIN · {Path(path).name} · controls locked until it returns")
+        payload = {"path": str(path)}
+        if output_root is not None:
+            payload["output_root"] = str(output_root)
+        self.command.emit("plugin", payload)
+
+    @Slot(str)
+    def on_plugin_log(self, line):
+        self.plugin_log.append(line)
+
     @Slot(str, object)
     def on_finished(self, command, result):
+        if command == "plugin":
+            self.active_operation = None
+            self._set_busy(False)
+            if isinstance(result, dict):
+                self.plugin_status.setText(f"Plugin: {result.get('status', 'error').upper()}"
+                                           + (f" · saved to {result['output']}" if result.get("output") else ""))
+                if result.get("model"):
+                    self.show_model(result["model"])
+                if result.get("sessions_touched"):
+                    # The script used the engine histories; the panes no longer show them.
+                    self.clean_chat.clear()
+                    self.fly_chat.clear()
+                if not result.get("error"):
+                    self.status.setText("LIVE · idle dynamics active")
         if command == "continuous" and self.continuous_dialog is not None:
             self.continuous_dialog.on_finished(result)
         if command == "switch_model":
@@ -987,14 +1068,16 @@ class ObservatoryWindow(QMainWindow):
                 self.status.setText(f"LIVE · {result['display']} loaded in {result.get('load_seconds') or 0:.0f} s")
             elif self.model_info is not None:
                 self.model_panel.set_model_info(self.model_info)
-        if command == "configure" and isinstance(result, dict) and "capture_layer" in result and not result.get("error"):
-            self.model_panel.mark_applied(result["capture_layer"], result["steer_layer"])
+        if command == "configure" and isinstance(result, dict) and "bypasses" in result and not result.get("error"):
+            self.model_panel.mark_applied(result["bypasses"])
             if self.model_info is not None:
                 key = self.model_info["profile"]
                 self.model_info = {**self.model_info, "capture_layer": result["capture_layer"],
-                                   "steer_layer": result["steer_layer"]}
+                                   "steer_layer": result["steer_layer"], "bypasses": result["bypasses"],
+                                   "active_bypasses": [list(pair) for pair in active_bypasses(result["bypasses"])]}
                 self.preferences.setValue(f"model/{key}/capture_layer", result["capture_layer"])
                 self.preferences.setValue(f"model/{key}/steer_layer", result["steer_layer"])
+                self.preferences.setValue(f"model/{key}/bypasses", json.dumps(result["bypasses"]))
                 if self.continuous_dialog is not None:
                     self.continuous_dialog.set_model_info(self.model_info)
         if command == "configure" and isinstance(result, dict) and result.get("error") and self.model_info is not None:

@@ -21,8 +21,10 @@ import torch
 from .connectome import load_graph, sha256
 from .debuglog import InferenceDebugLog, digest
 from .environment import inspect_environment
-from .llm import Coupling, LocalLLM, compare_logits, stop_token_ids
-from .models import LEGACY_PROFILE, ModelProfile, coupling_order, get_profile, valid_layer_pair
+from .bypass import (LEGACY_SINGLE, SYNCHRONIZATION, active_bypasses, coupling_mode, invalid_bypasses,
+                     normalize_bypasses)
+from .llm import Coupling, LocalLLM, SynchronousCoupling, compare_logits, stop_token_ids
+from .models import LEGACY_PROFILE, ModelProfile, coupling_order, get_profile
 from .recording import OfflineReplay, SessionRecording
 from .reservoir import Reservoir, random_control
 from .telemetry import Telemetry
@@ -57,6 +59,22 @@ class ObservatoryConfig:
     leak_rate: float = 0.2
     # Language substrate (see models.PROFILES); the original Qwen3-0.6B unless selected otherwise.
     model_profile: str = LEGACY_PROFILE
+    # Neural Bypass rows [capture, steer, enabled] (see bypass.py). None means the single pair
+    # capture_layer -> steer_layer; otherwise capture_layer/steer_layer mirror the first active pair.
+    bypasses: list | None = None
+
+    def __post_init__(self) -> None:
+        if self.bypasses is None:
+            self.bypasses = [[self.capture_layer, self.steer_layer, True]]
+        else:
+            self.bypasses = normalize_bypasses(self.bypasses)
+            active = active_bypasses(self.bypasses)
+            if active:
+                self.capture_layer, self.steer_layer = active[0]
+
+    @property
+    def active_bypasses(self) -> list[tuple[int, int]]:
+        return active_bypasses(self.bypasses)
 
     def validate(self) -> None:
         if self.max_context_tokens < 16 or not 1 <= self.max_new_tokens < self.max_context_tokens:
@@ -65,6 +83,8 @@ class ObservatoryConfig:
             raise ValueError(f"max_new_tokens may not exceed {MAX_NEW_TOKENS_LIMIT}")
         if self.capture_layer < 0 or self.steer_layer < 0:
             raise ValueError("Layer indices must be non-negative")
+        if not active_bypasses(self.bypasses):
+            raise ValueError("At least one Neural Bypass must be enabled")
         if self.features < 1 or self.threads < 1:
             raise ValueError("Features and threads must be positive")
         if any(not np.isfinite(x) or not 0 <= x <= 1 for x in (self.strength, self.feedback)):
@@ -172,8 +192,14 @@ class ObservatoryEngine:
             strength = self.config.strength if self.config.steering_enabled else 0.0
         if feedback is None:
             feedback = self.config.feedback if self.config.feedback_enabled else 0.0
-        return MeasuredCoupling(reservoir, self.llm.model.config.hidden_size,
-                                self.config.capture_layer, self.config.steer_layer,
+        active = self.config.active_bypasses
+        if len(active) > 1:
+            # Several unique pairs: one shared reservoir, one aggregate update per token.
+            return SynchronousCoupling(reservoir, self.llm.model.config.hidden_size, active,
+                                       strength, feedback, mode=mode, seed=self.config.seed)
+        # The legacy single bypass, unchanged.
+        capture, steer = active[0]
+        return MeasuredCoupling(reservoir, self.llm.model.config.hidden_size, capture, steer,
                                 strength, feedback, mode=mode, seed=self.config.seed)
 
     # ------------------------------------------------------------ language model
@@ -194,9 +220,11 @@ class ObservatoryEngine:
 
     def _check_layers(self, config: ObservatoryConfig) -> None:
         layers = self.model_layers()
-        if not valid_layer_pair(config.capture_layer, config.steer_layer, layers):
-            raise ValueError(f"Layer pair {config.capture_layer} -> {config.steer_layer} is invalid for a "
-                             f"{layers}-layer model (both must lie in 0..{layers - 1})")
+        invalid = invalid_bypasses(config.bypasses, layers)
+        if invalid:
+            pairs = ", ".join(f"{capture} -> {steer}" for capture, steer, _ in invalid)
+            raise ValueError(f"Neural Bypass {pairs} is invalid for {self.profile.display} with {layers} layers "
+                             f"(capture and steering must both lie in 0..{layers - 1})")
 
     def model_info(self) -> dict[str, Any]:
         """The loaded substrate as measured, for the GUI and every recording."""
@@ -210,13 +238,27 @@ class ObservatoryEngine:
                 "attention": getattr(llm, "attention", None), "load_seconds": getattr(llm, "load_seconds", None),
                 "device": str(self.device), **architecture,
                 "capture_layer": self.config.capture_layer, "steer_layer": self.config.steer_layer,
-                "coupling_order": coupling_order(self.config.capture_layer, self.config.steer_layer),
+                **self.coupling_info(),
                 "features": self.config.features, "reservoir_neurons": len(self.node_ids),
                 "projection_fingerprint": self.coupling.projection_fingerprint if hasattr(self, "coupling") else None}
         if self.device.type == "cuda":
             info["gpu_allocated_bytes"] = torch.cuda.memory_allocated(self.device)
             info["gpu_reserved_bytes"] = torch.cuda.memory_reserved(self.device)
         return info
+
+    def coupling_info(self) -> dict[str, Any]:
+        """The Neural Bypass configuration as it executes (recorded with every session and run)."""
+        active = self.config.active_bypasses
+        mode = coupling_mode(active)
+        feedback = self.config.feedback_enabled and self.config.feedback > 0
+        return {"bypasses": [list(row) for row in self.config.bypasses],
+                "active_bypasses": [list(pair) for pair in active], "coupling_mode": mode,
+                # Legacy per-pair hook order; synchronous mode has one defined order for every pair.
+                "coupling_order": coupling_order(*active[0]) if mode == LEGACY_SINGLE else "synchronous",
+                "capture_layers": sorted({capture for capture, _ in active}),
+                "steer_layers": sorted({steer for _, steer in active}),
+                "reservoir_updates_per_token": (2 if feedback else 1) if mode == LEGACY_SINGLE else 1,
+                "synchronization": SYNCHRONIZATION[mode]}
 
     def _build_metadata(self) -> dict[str, Any]:
         return {"model": self.model_path or self.profile.model_id, "model_revision": self.profile.revision,
@@ -228,7 +270,8 @@ class ObservatoryEngine:
                 "hardware": {**inspect_environment(), "device": str(self.device)},
                 "decoding": "greedy", "weights": "pretrained"}
 
-    def switch_model(self, key: str, capture_layer: int | None = None, steer_layer: int | None = None) -> dict:
+    def switch_model(self, key: str, capture_layer: int | None = None, steer_layer: int | None = None,
+                     bypasses: list | None = None) -> dict:
         """Replace the language substrate: one model in memory, fresh reservoir state and sessions.
 
         The reservoir state was driven by the previous model's activations and the projections
@@ -251,12 +294,14 @@ class ObservatoryEngine:
             released = torch.cuda.memory_allocated(self.device) if self.device.type == "cuda" else None
             capture = target.capture_layer if capture_layer is None else capture_layer
             steer = target.steer_layer if steer_layer is None else steer_layer
+            # Requested rows are validated against the new model as given; nothing is substituted.
+            rows = [[capture, steer, True]] if bypasses is None else normalize_bypasses(bypasses)
             try:
                 self.profile = target
                 self.llm = self._load_llm(target)
                 candidate = ObservatoryConfig(**{**asdict(self.config), "model_profile": target.key,
                                                  "revision": target.revision, "capture_layer": capture,
-                                                 "steer_layer": steer})
+                                                 "steer_layer": steer, "bypasses": rows})
                 candidate.validate()
                 self._check_layers(candidate)
             except BaseException as exc:
@@ -335,15 +380,23 @@ class ObservatoryEngine:
     def configure(self, **settings: Any) -> dict:
         with self._lock:
             mutable = {"strength", "feedback", "steering_enabled", "feedback_enabled", "max_new_tokens",
-                       "max_context_tokens", "leak_rate", "capture_layer", "steer_layer"}
+                       "max_context_tokens", "leak_rate", "capture_layer", "steer_layer", "bypasses"}
             if set(settings) - mutable:
                 raise ValueError("Only runtime steering, feedback, leak, layer and context settings may be configured")
+            settings = dict(settings)
+            if {"capture_layer", "steer_layer"} & set(settings):
+                if "bypasses" in settings:
+                    raise ValueError("Set either bypasses or capture_layer/steer_layer, not both")
+                # The legacy single-pair setting replaces the bypass list with that one pair.
+                settings["bypasses"] = None
             candidate = ObservatoryConfig(**{**asdict(self.config), **settings})
             candidate.validate()
             self._check_model_context(candidate)
             self._check_layers(candidate)
             old_layers = (self.config.capture_layer, self.config.steer_layer)
-            layers_changed = (candidate.capture_layer, candidate.steer_layer) != old_layers
+            old_active = self.config.active_bypasses
+            old_rows = self.config.bypasses
+            layers_changed = candidate.active_bypasses != old_active
             context_changed = candidate.max_context_tokens != self.config.max_context_tokens
             old_leak = self.reservoir.leak
             leak_changed = candidate.leak_rate != old_leak
@@ -356,10 +409,19 @@ class ObservatoryEngine:
                 if self.coupling.projection_fingerprint != fingerprint:
                     raise RuntimeError("Projections changed on a same-model layer change")
                 self.sessions["fly"].cache = self.sessions["fly"].cached_ids = None
-                self.recording.append("layers_changed", old=list(old_layers),
-                                      new=[candidate.capture_layer, candidate.steer_layer],
-                                      order=coupling_order(candidate.capture_layer, candidate.steer_layer),
+                info = self.coupling_info()
+                single = len(old_active) == 1 and len(candidate.active_bypasses) == 1
+                self.recording.append("layers_changed",
+                                      old=list(old_layers) if len(old_active) == 1 else [list(p) for p in old_active],
+                                      new=[candidate.capture_layer, candidate.steer_layer]
+                                      if len(candidate.active_bypasses) == 1 else info["active_bypasses"],
+                                      order=info["coupling_order"], coupling_mode=info["coupling_mode"],
+                                      bypasses=info["bypasses"], single_pair_change=single,
                                       projection_fingerprint=fingerprint)
+            elif candidate.bypasses != old_rows:
+                # Disabled, duplicate or reordered rows only: the executed coupling is unchanged.
+                self.recording.append("bypass_rows_changed", bypasses=candidate.bypasses,
+                                      active_bypasses=[list(p) for p in candidate.active_bypasses])
             if leak_changed:
                 # The live state is kept; only the update equation changes from the next update on.
                 self.reservoir.set_leak(candidate.leak_rate)
@@ -636,6 +698,33 @@ class ObservatoryEngine:
                                   stop_reasons={name: result[name]["stop_reason"] for name in result})
             return result
 
+    def generate_branch(self, branch: str, prompt: str, max_new_tokens: int | None = None,
+                        cancel_event: Event | None = None, on_token: Callable | None = None,
+                        on_telemetry: Callable | None = None) -> dict:
+        """One turn on one branch's own history (Clean uncoupled, Fly through the active bypasses).
+
+        Same inference path as generate_pair; only the chosen history receives the turn.
+        """
+        with self._lock:
+            if branch not in self.sessions:
+                raise ValueError("Branch must be 'clean' or 'fly'")
+            limit = self.config.max_new_tokens if max_new_tokens is None else max_new_tokens
+            if not isinstance(limit, int) or not 1 <= limit < self.config.max_context_tokens:
+                raise ValueError("Generation limit must be positive and smaller than context")
+            if limit > MAX_NEW_TOKENS_LIMIT:
+                raise ValueError(f"Generation limit may not exceed {MAX_NEW_TOKENS_LIMIT}")
+            cancel = cancel_event if cancel_event is not None else Event()
+            committed = {branch: len(self.sessions[branch].messages)}
+            try:
+                result = self._generate(branch, prompt, limit, cancel, on_token, on_telemetry,
+                                        coupling=self.coupling if branch == "fly" else None, turn=self.turn_index)
+            except BaseException:
+                self._rollback(committed)
+                raise
+            self.recording.append("message_single", branch=branch, prompt=prompt, response=result["text"],
+                                  stop_reason=result["stop_reason"])
+            return result
+
     def _rollback(self, committed: dict[str, int]) -> None:
         for branch, length in committed.items():
             session = self.sessions[branch]
@@ -873,6 +962,10 @@ class ObservatoryEngine:
             for key in ("capture_layer", "steer_layer", "features", "seed"):
                 if replay.settings.get(key) != getattr(self.config, key):
                     raise ValueError(f"Recording adapter setting {key} does not match this engine")
+            recorded = replay.settings.get("bypasses") or [[replay.settings["capture_layer"],
+                                                            replay.settings["steer_layer"], True]]
+            if active_bypasses(recorded) != self.config.active_bypasses:
+                raise ValueError("Recording Neural Bypass configuration does not match this engine")
             state = np.asarray(replay.state["values"], dtype=float)
             # Recordings made before leak control used the 0.2 baseline.
             leak = float(replay.settings.get("leak_rate", 0.2))

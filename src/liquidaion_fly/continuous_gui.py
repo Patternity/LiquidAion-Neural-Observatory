@@ -308,8 +308,13 @@ class ContinuousDialog(QDialog):
         """Mirror the main window's active model and layer pair (the main controls are authoritative)."""
         self.model_info = info
         quantization = f" · {info['quantization'].upper()}" if info.get("quantization") else ""
-        self.model_label.setText(f"Language model: {info['display']}{quantization} · capture {info['capture_layer']} "
-                                 f"→ steering {info['steer_layer']} · hidden {info['hidden_size']}")
+        active = info.get("active_bypasses") or [[info["capture_layer"], info["steer_layer"]]]
+        if len(active) == 1:
+            coupling = f"capture {active[0][0]} → steering {active[0][1]}"
+        else:
+            coupling = "synchronous multi-bypass " + ", ".join(f"{c}→{s}" for c, s in active)
+        self.model_label.setText(f"Language model: {info['display']}{quantization} · {coupling} · "
+                                 f"hidden {info['hidden_size']}")
         raw_only = info.get("interaction") != "chat"
         index = self.prompt_policy.findData("chat_prefix")
         item = self.prompt_policy.model().item(index)
@@ -356,7 +361,11 @@ class ContinuousDialog(QDialog):
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         # One subdirectory per model profile and layer pair, so runs of different substrates never collide.
         info = self.model_info or {}
-        group = f"{info.get('profile', 'model')}-c{info.get('capture_layer', 'x')}-s{info.get('steer_layer', 'x')}"
+        active = info.get("active_bypasses") or [[info.get("capture_layer", "x"), info.get("steer_layer", "x")]]
+        if len(active) == 1:
+            group = f"{info.get('profile', 'model')}-c{active[0][0]}-s{active[0][1]}"
+        else:
+            group = f"{info.get('profile', 'model')}-sync-" + "+".join(f"c{c}s{s}" for c, s in active)
         self.output_dir = self.output_root / group / f"{stamp}-{condition}"
         return {"seed_text": self.seed.text().strip() or DEFAULT_SEED_TEXT, "window": self.window_size.value(),
                 "total_tokens": self.total.value(), "condition": condition,

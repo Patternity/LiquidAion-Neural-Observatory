@@ -49,7 +49,7 @@ def main():
         layers = info["num_hidden_layers"]
         check(f"{info['profile']}: layer ranges follow {layers} layers",
               panel.capture.maximum() == layers - 1 and panel.steer.maximum() == layers - 1
-              and panel.steer.minimum() == 0 and panel.capture_max.text() == f"/ {layers - 1}",
+              and panel.steer.minimum() == 0 and f"0…{layers - 1}" in panel.layer_range.text(),
               f"capture 0..{panel.capture.maximum()}, steer {panel.steer.minimum()}..{panel.steer.maximum()}")
         check(f"{info['profile']}: model info shown", info["display"] in panel.model_info.text()
               and f"hidden {info['hidden_size']}" in panel.model_info.text(), panel.model_info.text().replace("\n", " | "))

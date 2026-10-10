@@ -638,7 +638,9 @@ class ContinuousRun:
                 if self.reservoir is not None else None,
                 "cue": {"target": self.config.cue_target, "strength": self.config.cue_strength,
                         "indices": self.cue_indices, "root_ids": self.cue_root_ids,
-                        "applied_to": "capture update forcing, while the newest window token is injected",
+                        "applied_to": ("capture update forcing" if len(self.engine.config.active_bypasses) == 1
+                                       else "the single synchronous update forcing")
+                                      + ", while the newest window token is injected",
                         "active": self.cue_vector is not None},
                 "da_neurons": {"indices": self.da_indices, "root_ids": self.da_root_ids},
                 "device": str(self.llm.device), "started_utc": datetime.now(timezone.utc).isoformat()}

@@ -203,3 +203,61 @@ def test_same_and_reversed_layer_pairs_drive_chat_and_continuous_generation(fact
     rows = load_run(tmp_path / "run")["telemetry"]
     assert rows and {(r["capture_layer"], r["steer_layer"]) for r in rows} == {(capture, steer)}
     assert_no_hooks(engine)
+
+
+def test_multi_bypass_configuration_runs_synchronously_through_chat_and_continuous(factory, tmp_path, monkeypatch):
+    engine = make_engine(tmp_path, model_profile="qwen3-1.7b-base")
+    fingerprint = engine.coupling.projection_fingerprint
+    engine.configure(bypasses=[[2, 4, True], [3, 1, True], [2, 4, True], [0, 0, False]])
+    info = engine.model_info()
+    assert info["coupling_mode"] == "synchronous_multi" and info["coupling_order"] == "synchronous"
+    assert info["active_bypasses"] == [[2, 4], [3, 1]] and info["reservoir_updates_per_token"] == 1
+    assert (info["capture_layers"], info["steer_layers"]) == ([2, 3], [1, 4])
+    assert engine.coupling.projection_fingerprint == fingerprint, "One shared reservoir, the same projections"
+    assert engine.coupling.reservoir is engine.reservoir
+    assert engine.sessions["fly"].cache is None
+    layers = engine.llm.model.model.layers
+    seen, original = [], engine.llm.model.forward
+
+    def forward(*args, **kwargs):
+        seen.append([len(layer._forward_hooks) for layer in layers])
+        return original(*args, **kwargs)
+    monkeypatch.setattr(engine.llm.model, "forward", forward)
+    pair = engine.generate_pair("Warm")
+    fly_calls = seen[len(pair["clean"]["token_ids"]):]
+    assert fly_calls and all(call == [0, 1, 1, 1, 1] for call in fly_calls), "One hook per unique layer"
+    assert all(record["reservoir_updates"] == 1 for record in pair["fly"]["trace"])
+    assert_no_hooks(engine)
+    run = ContinuousRun(engine, ContinuousConfig(seed_text="Once", window=8, total_tokens=10, checkpoints=(4,),
+                                                 probe_tokens=2, injections=((3, "Hi"),), cue_target="da",
+                                                 cue_strength=0.5), tmp_path / "run")
+    summary = run.run()
+    assert summary["reservoir_advances"] == summary["forward_calls"] == summary["stream_tokens"]
+    saved = load_run(tmp_path / "run")
+    assert saved["metadata"]["language_model"]["active_bypasses"] == [[2, 4], [3, 1]]
+    assert {tuple(r["capture_layer"]) for r in saved["telemetry"]} == {(2, 3)}
+    # Duplicate-only and disabled rows collapse to the unchanged legacy single bypass.
+    engine.configure(bypasses=[[2, 4, True], [2, 4, True], [3, 1, False]])
+    assert engine.model_info()["coupling_mode"] == "legacy_single" and type(engine.coupling).__name__ == "MeasuredCoupling"
+    with pytest.raises(ValueError, match="at least one|At least one"):
+        engine.configure(bypasses=[[2, 4, False]])
+    with pytest.raises(ValueError, match="invalid"):
+        engine.configure(bypasses=[[2, 4, True], [9, 1, True]])
+    assert engine.config.active_bypasses == [(2, 4)]
+    assert_no_hooks(engine)
+
+
+def test_model_switch_revalidates_bypasses_without_substitution(factory, tmp_path):
+    engine = make_engine(tmp_path, model_profile="qwen3-4b-base")
+    rows = [[1, 5, True], [5, 0, True]]
+    engine.configure(bypasses=rows)
+    with pytest.raises(RuntimeError, match="invalid"):
+        engine.switch_model("qwen3-0.6b", bypasses=rows)  # 3 layers in the stand-in: layer 5 does not exist
+    assert engine.profile.key == "qwen3-4b-base", "The previous model is restored"
+    assert_no_hooks(engine)
+    engine.switch_model("qwen3-1.7b-base", bypasses=[[1, 4, True], [4, 0, True], [2, 2, False]])
+    info = engine.model_info()
+    assert info["bypasses"] == [[1, 4, True], [4, 0, True], [2, 2, False]] and info["coupling_mode"] == "synchronous_multi"
+    assert engine.coupling.decoder.shape == (8, 48) and not engine.reservoir.state.any()
+    engine.generate_branch("fly", "Hello")
+    assert_no_hooks(engine)
