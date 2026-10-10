@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Versions follow
 ## [Unreleased]
 
 ### Added
+- Read-only steering diagnostics (`steering_diagnostics.py`).
+  - An optional observer on the coupling records reservoir states, readout and steering vectors,
+    applied deltas, and Clean / Fly / immediate-counterfactual logit metrics per token.
+  - Cosines use explicit undefined-value handling. Offline PCA and fixed-direction geometry.
+  - Plugin `plugins/examples/steering_dynamics_probe.py` and `api.steering_probe` / `api.load_model`.
+  - `scripts/steering_probe_pilot.py` and a 0.6B-Base pilot in `results/steering-dynamics-pilot/`.
+  - See `docs/STEERING_DIAGNOSTICS.md`.
 - Multi-Bypass: several capture → steering layer pairs at once, sharing one FlyWire reservoir.
   - One active pair keeps the legacy coupling unchanged.
   - Two or more run the Synchronous Multi-Bypass mode: steering from the pre-token state, mean

@@ -175,6 +175,30 @@ class ExperimentAPI:
         summary = run.run(self._cancel)
         return {**summary, "output": str(directory)}
 
+    def steering_probe(self, prompt: str, max_tokens: int = 48, name: str | None = None,
+                       forced_tokens: list[int] | None = None, counterfactual: bool = True) -> dict[str, Any]:
+        """Read-only steering diagnostics on the live coupling (steering_diagnostics.run_probe).
+
+        Clean and Fly see the same token ids (Clean's greedy continuation unless forced_tokens);
+        with counterfactual=True each step is also run uncoupled on a copy of the Fly cache.
+        The reservoir starts from its current state: call new_session() first for a zero start.
+        Writes metrics, vectors, plots and summary.md to <output_dir>/<name>/.
+        """
+        from .steering_diagnostics import run_probe
+        self.check_cancelled()
+        directory = self._unique(self.output_dir / self._name(name or "probe"))
+        return run_probe(self._engine, prompt, max_tokens, directory, forced_tokens, counterfactual,
+                         self._cancel, label=directory.name)
+
+    def load_model(self, profile: str, bypasses: list | None = None) -> dict[str, Any]:
+        """Switch the language model (no-op if already loaded with these bypasses); resets state and chats."""
+        info = self._engine.model_info()
+        rows = None if bypasses is None else [list(row) for row in bypasses]
+        if info["profile"] == profile and (rows is None or self._engine.config.bypasses == rows):
+            return info
+        self.sessions_touched = True
+        return self._engine.switch_model(profile, bypasses=rows)
+
     # ------------------------------------------------------------ inspection
 
     def get_config(self) -> dict[str, Any]:

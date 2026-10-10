@@ -1,0 +1,378 @@
+{
+  "label": "leak-0.005",
+  "created_utc": "2026-10-10T16:32:55.324138+00:00",
+  "prompt": "Однажды в студёную зимнюю пору",
+  "prompt_token_ids": [
+    20353,
+    6949,
+    2108,
+    79105,
+    4552,
+    5805,
+    140830,
+    44022,
+    76395,
+    138812,
+    141475,
+    90046,
+    3780
+  ],
+  "token_ids": [
+    11,
+    128895,
+    5805,
+    8178,
+    7599,
+    14746,
+    128897,
+    5409,
+    66502,
+    33513,
+    11,
+    7587,
+    5409,
+    2108,
+    24671,
+    128897,
+    10813,
+    4235,
+    16964,
+    12121,
+    34623,
+    11,
+    5805,
+    140830,
+    5259,
+    6020,
+    22484,
+    128588,
+    14062,
+    1802,
+    132348,
+    13039,
+    14949,
+    1504,
+    17686,
+    126478,
+    132427,
+    48951,
+    35397,
+    127398,
+    128440,
+    13,
+    135432,
+    129760,
+    48951,
+    16339,
+    11,
+    7587
+  ],
+  "token_source": "Clean greedy continuation",
+  "steps": 48,
+  "cancelled": false,
+  "model": {
+    "profile": "qwen3-0.6b-base",
+    "display": "Qwen3-0.6B-Base",
+    "kind": "base",
+    "interaction": "raw",
+    "model_id": "Qwen/Qwen3-0.6B-Base",
+    "source": "Qwen/Qwen3-0.6B-Base",
+    "revision": "da87bfb608c14b7cf20ba1ce41287e8de496c0cd",
+    "dtype": "bfloat16",
+    "quantization": null,
+    "attention": "sdpa",
+    "load_seconds": 9.383709163001186,
+    "device": "cuda",
+    "model_type": "qwen3",
+    "hidden_size": 1024,
+    "num_hidden_layers": 28,
+    "vocab_size": 151936,
+    "max_position_embeddings": 32768,
+    "eos_token_ids": [
+      151643
+    ],
+    "capture_layer": 2,
+    "steer_layer": 2,
+    "bypasses": [
+      [
+        2,
+        2,
+        true
+      ],
+      [
+        26,
+        26,
+        true
+      ]
+    ],
+    "active_bypasses": [
+      [
+        2,
+        2
+      ],
+      [
+        26,
+        26
+      ]
+    ],
+    "coupling_mode": "synchronous_multi",
+    "coupling_order": "synchronous",
+    "capture_layers": [
+      2,
+      26
+    ],
+    "steer_layers": [
+      2,
+      26
+    ],
+    "reservoir_updates_per_token": 1,
+    "synchronization": "Synchronous multi-bypass: all steering layers read the reservoir state from before the token; captures (mean over unique capture layers) and feedback (mean over unique steering layers) are applied in one reservoir update after the forward pass; observations influence steering from the next token on.",
+    "features": 64,
+    "reservoir_neurons": 512,
+    "projection_fingerprint": "44cd2e997893e23ed6e06cab915645c14e190997a4628591339cfe180270a194"
+  },
+  "coupling": {
+    "bypasses": [
+      [
+        2,
+        2,
+        true
+      ],
+      [
+        26,
+        26,
+        true
+      ]
+    ],
+    "active_bypasses": [
+      [
+        2,
+        2
+      ],
+      [
+        26,
+        26
+      ]
+    ],
+    "coupling_mode": "synchronous_multi",
+    "coupling_order": "synchronous",
+    "capture_layers": [
+      2,
+      26
+    ],
+    "steer_layers": [
+      2,
+      26
+    ],
+    "reservoir_updates_per_token": 1,
+    "synchronization": "Synchronous multi-bypass: all steering layers read the reservoir state from before the token; captures (mean over unique capture layers) and feedback (mean over unique steering layers) are applied in one reservoir update after the forward pass; observations influence steering from the next token on."
+  },
+  "settings": {
+    "strength": 0.9,
+    "feedback": 0.65,
+    "steering_enabled": true,
+    "feedback_enabled": true,
+    "leak_rate": 0.005
+  },
+  "reservoir": {
+    "leak": 0.005,
+    "dt": 0.2,
+    "gain": 0.9,
+    "input_strength": 0.5,
+    "initial_state_rms": 0.0,
+    "updates_per_token": 1,
+    "note": "Legacy single bypass advances the reservoir twice per token (capture, feedback) and synchronous multi-bypass once, so equal leak rates are not equal time scales per token across the two modes."
+  },
+  "projection": {
+    "readout_shape": [
+      512,
+      64
+    ],
+    "decoder_shape": [
+      64,
+      1024
+    ],
+    "readout_rank": 64,
+    "decoder_rank": 64,
+    "centered_decoder_rank": 64,
+    "readout_singular_values": {
+      "max": 1.3444336394299872,
+      "min": 0.6711305938140522
+    },
+    "decoder_singular_values": {
+      "max": 4.923224657444797,
+      "min": 3.073773829489266
+    },
+    "centered_decoder_condition_number": 1.6022349588935632,
+    "reservoir_null_space_dimension": 448,
+    "fixed": "readout and decoder are drawn once from seed 42 and never change",
+    "nonlinearity": "none between state and delta: linear projections, mean removal, then one scalar per token (1 / max(RMS, 1) and strength * RMS(h)); direction is set by the linear part",
+    "steering_subspace": "every steering vector lies in the image of the centered decoder (at most 64 dimensions of the hidden space)"
+  },
+  "counterfactual": true,
+  "step_alignment": "step k = forward pass k; pass 0 is the prompt prefill, pass k >= 1 feeds token k-1; pass k's logits predict token k; hooks act on the last input position",
+  "state_alignment": {
+    "state_before": "reservoir state at the start of pass k",
+    "state_used_for_steering": "the state passed to the steering rule in pass k (legacy forward: after this token's capture update; legacy backward and synchronous: state_before)",
+    "state_after": "reservoir state at the end of pass k (input to pass k+1)"
+  },
+  "steering_vector": "centered = compact @ decoder - mean; the applied delta is a positive multiple of it (strength * RMS(h) / max(RMS(centered), 1))",
+  "undefined_values": "Cosines involving a vector with norm <= 1e-12 are undefined and stored as NaN (empty in CSV).",
+  "reference_steps": {
+    "state": 0,
+    "compact": 1,
+    "steering": 1
+  },
+  "geometry": {
+    "steering": {
+      "samples": 47,
+      "dimension": 1024,
+      "centered": {
+        "explained_variance_ratio": [
+          0.9635819964242854,
+          0.0170063471831589,
+          0.008408382557163877,
+          0.004193192980553071,
+          0.001915921435024831,
+          0.0013232488986837663,
+          0.0007986972233719723,
+          0.0005590501411990716,
+          0.0004197862945812826,
+          0.00030757955747885083
+        ],
+        "effective_rank": 1.2439094091927865,
+        "participation_ratio": 1.0765715810972507
+      },
+      "uncentered": {
+        "top1_energy_fraction": 0.989590741363644,
+        "top3_energy_fraction": 0.9972255259567689
+      },
+      "note": "rank estimates from 47 samples are bounded by min(samples - 1, dimension) and are unreliable when samples are few"
+    },
+    "compact": {
+      "samples": 47,
+      "dimension": 64,
+      "centered": {
+        "explained_variance_ratio": [
+          0.9631594306904636,
+          0.017008269682130123,
+          0.008780381882124181,
+          0.004161227340793749,
+          0.0019059479795885625,
+          0.0012865632984978865,
+          0.0008103887169136593,
+          0.0006269963946718939,
+          0.00043727552854599076,
+          0.0003178219934983398
+        ],
+        "effective_rank": 1.2467655382021907,
+        "participation_ratio": 1.0775088667959951
+      },
+      "uncentered": {
+        "top1_energy_fraction": 0.989549943524106,
+        "top3_energy_fraction": 0.9972150642198468
+      },
+      "note": "rank estimates from 47 samples are bounded by min(samples - 1, dimension) and are unreliable when samples are few"
+    },
+    "reservoir_state": {
+      "samples": 48,
+      "dimension": 512,
+      "centered": {
+        "explained_variance_ratio": [
+          0.9527795610061066,
+          0.019460715873179966,
+          0.013004715084616593,
+          0.00472296782638121,
+          0.00219328181386276,
+          0.001681600471932452,
+          0.0014031457088120956,
+          0.0010024483486519226,
+          0.0006837413811543306,
+          0.0005835154325402609
+        ],
+        "effective_rank": 1.317908173212882,
+        "participation_ratio": 1.1008717996142248
+      },
+      "uncentered": {
+        "top1_energy_fraction": 0.9862535006081746,
+        "top3_energy_fraction": 0.9960804738355209
+      },
+      "note": "rank estimates from 48 samples are bounded by min(samples - 1, dimension) and are unreliable when samples are few"
+    },
+    "reservoir_change": {
+      "samples": 47,
+      "dimension": 512,
+      "centered": {
+        "explained_variance_ratio": [
+          0.14391814638901837,
+          0.10030306568884129,
+          0.08190524237439291,
+          0.07359493435652696,
+          0.06180493554035511,
+          0.05562764816720037,
+          0.04962715569558642,
+          0.04359445815213316,
+          0.03877028076859971,
+          0.0365559869243278
+        ],
+        "effective_rank": 22.163054943445896,
+        "participation_ratio": 15.919816051271175
+      },
+      "uncentered": {
+        "top1_energy_fraction": 0.39813718576723894,
+        "top3_energy_fraction": 0.5296101658290343
+      },
+      "note": "rank estimates from 47 samples are bounded by min(samples - 1, dimension) and are unreliable when samples are few"
+    }
+  },
+  "tokens_text": [
+    ",",
+    " когда",
+    " в",
+    "ет",
+    "ер",
+    "ок",
+    " был",
+    " с",
+    "иль",
+    "ный",
+    ",",
+    " и",
+    " с",
+    "н",
+    "ег",
+    " был",
+    " т",
+    "я",
+    "ж",
+    "ел",
+    "ый",
+    ",",
+    " в",
+    " студ",
+    "ен",
+    "ч",
+    "ес",
+    "кой",
+    " б",
+    "и",
+    "бли",
+    "от",
+    "ек",
+    "е",
+    " по",
+    "яв",
+    "илась",
+    " нов",
+    "ая",
+    " кни",
+    "га",
+    ".",
+    " Она",
+    " была",
+    " нов",
+    "ой",
+    ",",
+    " и"
+  ]
+}

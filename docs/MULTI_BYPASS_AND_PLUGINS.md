@@ -162,6 +162,8 @@ chat histories, the chat panes are cleared.
 | `api.get_config()` | A copy of the settings, model information and executed coupling. |
 | `api.get_reservoir_state()` | A copy of the shared reservoir: a read-only `state` array, `rms`, `simulation_time`, `leak`, `fingerprint`. |
 | `api.save_result(name, result, extra=None, overwrite=False)` | Write `<run dir>/<name>.json`. It contains the result plus the model, coupling, settings, reservoir summary and session id. Existing files are never replaced unless `overwrite=True`. |
+| `api.steering_probe(prompt, max_tokens, name, forced_tokens, counterfactual)` | Read-only per-token steering diagnostics; see [STEERING_DIAGNOSTICS.md](STEERING_DIAGNOSTICS.md). |
+| `api.load_model(profile, bypasses=None)` | Switch the language model, as the Load button does; this resets the reservoir and the chats. |
 | `api.log(message)` | Add a line to the plugin log. |
 | `api.is_cancelled()`, `api.check_cancelled()` | Cooperative cancellation. |
 | `api.output_dir` | The run directory. You may write other files there with ordinary Python. |

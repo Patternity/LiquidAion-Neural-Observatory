@@ -45,6 +45,8 @@ class Coupling:
         self.cue: np.ndarray | None = None
         self.current: dict[str, Any] = {}
         self._fired: set[str] = set()
+        # Optional read-only diagnostics (steering_diagnostics.SteeringObserver); None changes nothing.
+        self.observer: Any = None
         self.token_position = 0
 
     @property
@@ -81,6 +83,8 @@ class Coupling:
         if h.ndim != 3 or h.shape[0] != 1:
             raise ValueError("This MVP supports one sequence at a time")
         observation = self.features(h[0, -1])
+        if self.observer is not None:
+            self.observer.capture(self.capture_layer, h[0, -1], observation)
         self.reservoir.advance(observation, extra=self.cue)
         self._pass_record("capture").update({
             "sequence_length": h.shape[1], "capture_rms": float(h[0, -1].float().square().mean().sqrt()),
@@ -94,12 +98,13 @@ class Coupling:
             state = self.static_state
         return state
 
-    def _intervene(self, h: torch.Tensor, state: np.ndarray) -> tuple[torch.Tensor, dict[str, Any]]:
+    def _intervene(self, h: torch.Tensor, state: np.ndarray,
+                   layer: int | None = None) -> tuple[torch.Tensor, dict[str, Any]]:
         """Add the state-derived residual at the last position; the established steering rule."""
         compact = torch.from_numpy((state @ self.readout).astype("float32")).to(h.device)
-        direction = compact @ self.decoder.to(h.device)
-        direction = direction - direction.mean()
-        direction = direction / direction.square().mean().sqrt().clamp_min(1.0)
+        raw = compact @ self.decoder.to(h.device)
+        centered = raw - raw.mean()
+        direction = centered / centered.square().mean().sqrt().clamp_min(1.0)
         baseline = h[:, -1, :]
         baseline_rms = baseline.float().square().mean(dim=-1, keepdim=True).sqrt()
         alpha = 0.0 if self.mode == "none" else self.strength
@@ -113,6 +118,8 @@ class Coupling:
         relative = float(actual_delta.square().mean().sqrt() / baseline_rms.mean().clamp_min(1e-8))
         if not torch.isfinite(modified).all():
             raise FloatingPointError("Nonfinite hidden activation after intervention")
+        if self.observer is not None:
+            self.observer.steering(layer, state, compact, raw, centered, direction, baseline, modified[:, -1, :])
         return modified, {"mode": self.mode, "strength": alpha, "before_rms": float(baseline_rms.mean()),
                           "after_rms": float(modified[:, -1, :].float().square().mean().sqrt()),
                           "delta_relative_rms": relative}
@@ -120,7 +127,7 @@ class Coupling:
     def steer(self, module: Any, args: tuple, output: Any) -> Any:
         h = output[0] if isinstance(output, tuple) else output
         state = self._steering_state()
-        modified, measured = self._intervene(h, state)
+        modified, measured = self._intervene(h, state, self.steer_layer)
         record = self._pass_record("steer")
         record.update({**measured,
                              "state_rms": float(np.sqrt(np.mean(state**2))),
@@ -130,6 +137,8 @@ class Coupling:
         if self.feedback:
             # Modified activations affect later reservoir reads, never their own past.
             feedback_input = self.feedback * self.features(modified[0, -1])
+            if self.observer is not None:
+                self.observer.feedback(self.steer_layer, feedback_input)
             record["feedback_input_norm"] = float(np.linalg.norm(feedback_input))
             self.reservoir.advance(feedback_input)
         else:
@@ -223,9 +232,11 @@ class SynchronousCoupling(Coupling):
         result = None
         if index in self.capture_layers:
             pending["captures"][index] = self.features(h[0, -1])
+            if self.observer is not None:
+                self.observer.capture(index, h[0, -1], pending["captures"][index])
             record["capture"][str(index)] = {"capture_rms": float(h[0, -1].float().square().mean().sqrt())}
         if index in self.steer_layers:
-            modified, measured = self._intervene(h, pending["state"])
+            modified, measured = self._intervene(h, pending["state"], index)
             measured["steering_vector_norm"] = float((modified[:, -1].float() - h[:, -1].float()).norm())
             record["steering"][str(index)] = measured
             if self.feedback:
@@ -245,6 +256,9 @@ class SynchronousCoupling(Coupling):
             feedback_input = self.feedback * np.mean([pending["feedback"][layer] for layer in self.steer_layers], axis=0)
         mapped = self.reservoir.dynamics.input_strength * (self.reservoir.input @ captured)
         before = self.reservoir.state.copy()
+        if self.observer is not None:
+            self.observer.feedback(None, feedback_input)
+            self.observer.aggregate(captured, feedback_input)
         # The single update of this token: capture and feedback forcing share one tanh step.
         self.reservoir.advance(captured + feedback_input, extra=self.cue)
         steering = [record["steering"][str(layer)] for layer in self.steer_layers]
