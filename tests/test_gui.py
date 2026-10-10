@@ -600,3 +600,14 @@ def test_plugin_runs_on_the_worker_and_failures_restore_the_controls(window, app
     assert "ERROR" in window.plugin_status.text() and "line from the script" in window.plugin_log.toPlainText()
     assert "tiny.py failed" in window.experiment_result.toPlainText()
     shiboken6.delete(worker)
+
+
+def test_session_file_name_carries_a_timestamp(window, monkeypatch):
+    from datetime import datetime
+    from liquidaion_fly.observatory_gui import session_filename
+    assert session_filename(datetime(2026, 10, 10, 14, 25, 30)) == "liquidaion-session-20261010-142530.json"
+    offered = []
+    monkeypatch.setattr("liquidaion_fly.observatory_gui.QFileDialog.getSaveFileName",
+                        lambda parent, title, name, filters: (offered.append(name), ("", ""))[1])
+    window.save_session()
+    assert offered and offered[0].startswith("liquidaion-session-2") and offered[0].endswith(".json")

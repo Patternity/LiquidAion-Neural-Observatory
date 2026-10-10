@@ -76,6 +76,11 @@ def saved_bypasses(preferences, profile_key):
     return [[capture, steer, True]]
 
 
+def session_filename(moment=None):
+    """Default recording name with a local timestamp, e.g. liquidaion-session-20261010-142530.json."""
+    return f"liquidaion-session-{(moment or datetime.now()):%Y%m%d-%H%M%S}.json"
+
+
 STYLE = """
 QWidget { background:#0b111e; color:#dbe6f8; font-family:Inter,Arial,sans-serif; font-size:12px; }
 QMainWindow { background:#0b111e; }
@@ -1176,7 +1181,8 @@ class ObservatoryWindow(QMainWindow):
         self.command.emit("new_session", None)
 
     def save_session(self):
-        path, _ = QFileDialog.getSaveFileName(self, "Save complete session", "liquidaion-session.json", "Session recording (*.json)")
+        path, _ = QFileDialog.getSaveFileName(self, "Save complete session", session_filename(),
+                                              "Session recording (*.json)")
         if path:
             self.command.emit("save_recording", path)
 
