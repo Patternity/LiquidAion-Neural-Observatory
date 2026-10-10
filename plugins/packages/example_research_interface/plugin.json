@@ -1,0 +1,7 @@
+{
+  "id": "example_research_interface",
+  "name": "Example C: gated steering interface with its own panel",
+  "version": "0.1.0",
+  "api_version": "1.0",
+  "description": "One research component in one plugin: an experimental neural interface, a panel to configure and watch it, and a demonstration experiment."
+}

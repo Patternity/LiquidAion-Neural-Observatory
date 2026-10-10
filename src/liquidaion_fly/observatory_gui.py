@@ -728,7 +728,8 @@ class ObservatoryWindow(QMainWindow):
         self.workspace = Workspace(self)
         outer.addWidget(self.workspace, 1)
         self._register_builtin_panels()
-        for spec in self.registry.list("ui_panel"):
+        # Built-in panels first: plugin panels may log into the built-in plugin console.
+        for spec in sorted(self.registry.list("ui_panel"), key=lambda s: s.plugin_id != "builtin"):
             dock = PanelDock(spec, self, persistent=spec.plugin_id == "builtin")
             self.workspace.add(dock)
             # Built-in panels always exist (the shell drives them); plugin panels are built when shown.
@@ -736,7 +737,7 @@ class ObservatoryWindow(QMainWindow):
                 dock.build()
             else:
                 dock.hide()
-        self.workspace.arrange(self.DEFAULT_TOP, self.DEFAULT_BOTTOM, self.DEFAULT_TABS)
+        self.workspace.arrange(self.DEFAULT_TOP, self.DEFAULT_BOTTOM, self._default_tabs())
         self._restore_layout()
         input_row = QHBoxLayout()
         self.prompt = QLineEdit()
@@ -827,8 +828,14 @@ class ObservatoryWindow(QMainWindow):
         self.preferences.setValue("workspace/state", self.workspace.saveState(LAYOUT_VERSION))
         self.preferences.sync()
 
+    def _default_tabs(self):
+        """Plugin panels open as tabs beside Experiments; they can be dragged out, docked or floated."""
+        plugin_panels = [d for d, dock in self.workspace.docks.items() if not dock.persistent]
+        anchor = "builtin.ui.experiments"
+        return {anchor: self.DEFAULT_TABS[anchor] + plugin_panels}
+
     def reset_layout(self):
-        self.workspace.arrange(self.DEFAULT_TOP, self.DEFAULT_BOTTOM, self.DEFAULT_TABS)
+        self.workspace.arrange(self.DEFAULT_TOP, self.DEFAULT_BOTTOM, self._default_tabs())
         self.preferences.remove("workspace/state")
 
     def _panel_clean_chat(self, context):
@@ -1038,6 +1045,8 @@ class ObservatoryWindow(QMainWindow):
         problems = {pid: message for pid, message in self.registry.errors.items()}
         if problems:
             self.plugin_log.append("Plugin loading problems:\n" + "\n".join(f"  {k}: {v}" for k, v in problems.items()))
+        for line in getattr(self, "_early_log", []):
+            self.plugin_log.append(line)
         return panel
 
     def _panel_components(self, context):
@@ -1382,6 +1391,9 @@ class ObservatoryWindow(QMainWindow):
 
     @Slot(str)
     def on_plugin_log(self, line):
+        if not hasattr(self, "plugin_log"):
+            self._early_log = getattr(self, "_early_log", []) + [line]
+            return
         self.plugin_log.append(line)
 
     def _publish_outcome(self, command, result):

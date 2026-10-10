@@ -718,6 +718,8 @@ class ObservatoryEngine:
                     measured = {key: record[key] for key in ("input_norm", "mapped_input_norm", "steering_vector_norm", "delta_relative_rms", "capture_rms",
                                "before_rms", "after_rms", "feedback_enabled", "feedback_strength",
                                "feedback_state_rms")}
+                    if "interface_metrics" in record:
+                        measured["interface_metrics"] = record["interface_metrics"]
                 self._publish("token", on_telemetry, branch=branch, generated_tokens=len(generated),
                               tokens_per_second=len(generated) / max(elapsed, 1e-9), token_index=step,
                               actual_reservoir=coupling.reservoir if coupling else self.reservoir, **measured)

@@ -349,18 +349,21 @@ def run_experiment(engine: Any, component_id: str, cancel_event: Event, log: Cal
     manifest = engine.registry.plugins.get(spec.plugin_id)
     script = Path(manifest.path / manifest.entry) if manifest and manifest.path else Path(component_id + ".py")
     return _execute(engine, lambda: spec.factory, component_id, script, cancel_event, log, on_telemetry, output_root,
-                    {"experiment": component_id, "plugin": spec.plugin_id, "version": spec.version})
+                    {"experiment": component_id, "plugin": spec.plugin_id, "version": spec.version},
+                    output_name=component_id)
 
 
 def _execute(engine: Any, resolve: Callable[[], Callable], label: str, script: Path, cancel_event: Event,
              log: Callable[[str], None], on_telemetry: Callable | None, output_root: Path,
-             identity: dict[str, Any]) -> dict[str, Any]:
+             identity: dict[str, Any], output_name: str | None = None) -> dict[str, Any]:
     """Run run(api); a failure is logged with its traceback and returned as status "error".
 
     Engine hooks are always detached by the engine itself; any forward hook still present
     afterwards was left by the code and is removed so later inference stays uncoupled.
     """
     api = ExperimentAPI(engine, script, cancel_event, log, on_telemetry, output_root)
+    if output_name:
+        api.set_output_name(output_name)  # results/plugins/<experiment id>/<time>/
     started = datetime.now(timezone.utc).isoformat()
     status, error = "finished", None
     engine.recording.append("plugin_started", **identity)

@@ -1,5 +1,6 @@
 """Plugin architecture: registry, discovery, component selection and failure isolation (tiny weights)."""
 import json
+from pathlib import Path
 import textwrap
 from threading import Event
 
@@ -250,4 +251,27 @@ def test_registered_experiment_runs_through_the_experiment_api(monkeypatch, tmp_
     api = ExperimentAPI(engine, tmp_path / "x.py", Event(), lines.append, output_root=tmp_path / "out")
     assert {c["id"] for c in api.list_components("neural_interface")} == {"builtin.interface.original", "testplug.scaled"}
     assert api.components()["coupling"]["id"] == "builtin.coupling.auto"
+    assert_no_hooks(engine)
+
+
+def test_example_plugins_run_headless_without_qt(monkeypatch, tmp_path):
+    import subprocess
+    import sys
+    code = ("import sys; from liquidaion_fly.plugin_api import build_registry; "
+            "import liquidaion_fly.observatory_engine, liquidaion_fly.plugins; "
+            "r = build_registry(enabled=['example_normalized_interface', 'example_telemetry_panel', "
+            "'example_research_interface']); assert not r.errors, r.errors; "
+            "assert 'PySide6' not in sys.modules, 'headless use imported Qt'; print(len(r.list()))")
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+                            env={**__import__("os").environ, "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")})
+    assert result.returncode == 0, result.stderr
+    registry = build_registry(enabled=["example_normalized_interface"])
+    engine = build_engine(monkeypatch, tmp_path, registry=registry)
+    lines = []
+    result = run_experiment(engine, "example_normalized_interface.compare", Event(), lines.append,
+                            output_root=tmp_path / "out")
+    assert result["status"] == "finished", lines
+    saved = json.loads(open(result["saved"][0]).read())
+    assert set(saved["result"]) == {"builtin.interface.original", "example_normalized_interface.unit_rms"}
+    assert engine.config.components["neural_interface"] == "builtin.interface.original"
     assert_no_hooks(engine)

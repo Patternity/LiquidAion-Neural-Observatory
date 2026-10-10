@@ -1,0 +1,7 @@
+{
+  "id": "example_telemetry_panel",
+  "name": "Example B: live telemetry panel",
+  "version": "0.1.0",
+  "api_version": "1.0",
+  "description": "A dockable Qt panel that shows live reservoir and steering telemetry. Demonstrates panel registration, event subscription, GUI-thread updates and cleanup."
+}

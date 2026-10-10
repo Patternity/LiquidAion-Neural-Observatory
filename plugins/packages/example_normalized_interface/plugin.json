@@ -1,0 +1,7 @@
+{
+  "id": "example_normalized_interface",
+  "name": "Example A: unit-RMS steering (experimental)",
+  "version": "0.1.0",
+  "api_version": "1.0",
+  "description": "A neural interface identical to the original except that the steering direction is always scaled to unit RMS. Demonstrates replacing one mathematical step; not an improvement claim."
+}

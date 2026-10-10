@@ -124,6 +124,11 @@ class PanelContext:
         self.registry.get(component_id).resolve_params(params)
         self.command("configure", {"component_params": {component_id: params}})
 
+    def run_experiment(self, component_id: str) -> None:
+        """Run a registered experiment on the engine worker (the shell locks the controls meanwhile)."""
+        self.registry.get(component_id, "experiment")
+        self.shell.run_plugin_experiment(component_id)
+
     def log(self, message: str) -> None:
         self.shell.on_plugin_log(f"[{self.panel_id}] {message}")
 
