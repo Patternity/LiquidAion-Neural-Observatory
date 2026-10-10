@@ -117,6 +117,8 @@ def main() -> None:
     parser.add_argument("--max-tokens", type=int, default=8)
     parser.add_argument("--output", type=Path, default=ROOT / "results/observatory")
     parser.add_argument("--prepare-only", action="store_true")
+    parser.add_argument("--model-profile", help="Language model profile (see liquidaion_fly.models.PROFILES); "
+                                                "default: the original Qwen3-0.6B or the GUI's saved choice")
     parser.add_argument("--debug-log", choices=("summary", "full"),
                         help="Opt-in per-generation inference log. 'summary' stores counts, stop reasons, "
                              "cache/hook/trim events and digests; 'full' also stores the rendered prompt, "
@@ -125,6 +127,11 @@ def main() -> None:
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
     config = load_configuration(args.config, args.cpu)
+    if args.model_profile:
+        from .models import get_profile
+        profile = get_profile(args.model_profile)
+        config.update(model_profile=profile.key, revision=profile.revision,
+                      capture_layer=profile.capture_layer, steer_layer=profile.steer_layer)
     try:
         hardware = check_device(config["device"], replay=args.replay is not None or args.prepare_only)
         validate_graph(args.graph)

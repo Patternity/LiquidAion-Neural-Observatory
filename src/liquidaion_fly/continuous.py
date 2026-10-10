@@ -248,6 +248,9 @@ class ContinuousRun:
         if not seed_ids:
             raise ValueError("Seed text produced no tokens")
         self.seed_ids = seed_ids
+        profile = getattr(engine, "profile", None)
+        if config.prompt_policy == "chat_prefix" and profile is not None and profile.interaction != "chat":
+            raise ValueError(f"chat_prefix uses a chat template; {profile.display} is a Base model, use raw continuation")
         self.prefix_ids = prefix_token_ids(self.llm.tokenizer, config)
         # The only token state inside the engine is this bounded window (plus a fixed prefix).
         self.window_ids = seed_ids[-config.window:]
@@ -474,7 +477,9 @@ class ContinuousRun:
                         "steering_vector_norm": record["steering_vector_norm"],
                         "feedback_input_norm": record.get("feedback_input_norm", 0.0),
                         "input_norm": record["input_norm"], "capture_rms": record["capture_rms"],
-                        "leak": self.reservoir.leak})
+                        "leak": self.reservoir.leak,
+                        # Layers whose hooks actually fired in this forward pass.
+                        "capture_layer": record["capture_layer"], "steer_layer": record["steer_layer"]})
             if self.da_indices:
                 da = state[self.da_indices]
                 row.update({"da_mean": float(da.mean()), "da_abs_mean": float(np.abs(da).mean())})
@@ -606,7 +611,11 @@ class ContinuousRun:
     # ------------------------------------------------------------- run loop
 
     def metadata(self) -> dict[str, Any]:
+        language_model = self.engine.model_info() if hasattr(self.engine, "model_info") else None
+        if language_model is not None and self.coupling is not None:
+            language_model["projection_fingerprint"] = self.coupling.projection_fingerprint
         return {"experiment": "continuous_sliding_window", "config": asdict(self.config),
+                "language_model": language_model,
                 "engine": {key: self.engine.metadata[key] for key in
                            ("model", "model_revision", "connectome_hash", "node_hash")},
                 "reservoir_fingerprint": self.reservoir.fingerprint if self.reservoir else None,

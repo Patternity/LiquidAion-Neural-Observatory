@@ -168,9 +168,14 @@ class ContinuousDialog(QDialog):
         self.output_root = Path(output_root or ROOT / "results" / "continuous" / "gui")
         self.graph_dir = Path(graph_dir or ROOT / "data" / "cx512")
         self.output_dir: Path | None = None
+        self.model_info: dict | None = None
         self.running = False
         self.injection_status: dict[int, str] = {}
         layout = QVBoxLayout(self)
+        self.model_label = QLabel("Language model: –")
+        self.model_label.setStyleSheet("color:#f5d285")
+        self.model_label.setToolTip("Set in the main window (LANGUAGE MODEL, MODEL COUPLING); shared by both views")
+        layout.addWidget(self.model_label)
         form = QFormLayout()
         self.seed = QLineEdit(DEFAULT_SEED_TEXT)
         self.window_size = QSpinBox()
@@ -299,6 +304,20 @@ class ContinuousDialog(QDialog):
         self._update_enabled()
         self.set_running(False)
 
+    def set_model_info(self, info: dict) -> None:
+        """Mirror the main window's active model and layer pair (the main controls are authoritative)."""
+        self.model_info = info
+        quantization = f" · {info['quantization'].upper()}" if info.get("quantization") else ""
+        self.model_label.setText(f"Language model: {info['display']}{quantization} · capture {info['capture_layer']} "
+                                 f"→ steering {info['steer_layer']} · hidden {info['hidden_size']}")
+        raw_only = info.get("interaction") != "chat"
+        index = self.prompt_policy.findData("chat_prefix")
+        item = self.prompt_policy.model().item(index)
+        if item is not None:
+            item.setEnabled(not raw_only)
+        if raw_only and self.prompt_policy.currentData() == "chat_prefix":
+            self.prompt_policy.setCurrentIndex(self.prompt_policy.findData("raw"))
+
     def _update_cue_info(self):
         target = self.cue.currentData()
         if target == "off":
@@ -335,7 +354,10 @@ class ContinuousDialog(QDialog):
     def payload(self) -> dict:
         condition = self.condition.currentData()
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        self.output_dir = self.output_root / f"{stamp}-{condition}"
+        # One subdirectory per model profile and layer pair, so runs of different substrates never collide.
+        info = self.model_info or {}
+        group = f"{info.get('profile', 'model')}-c{info.get('capture_layer', 'x')}-s{info.get('steer_layer', 'x')}"
+        self.output_dir = self.output_root / group / f"{stamp}-{condition}"
         return {"seed_text": self.seed.text().strip() or DEFAULT_SEED_TEXT, "window": self.window_size.value(),
                 "total_tokens": self.total.value(), "condition": condition,
                 "reset_interval": self.reset_interval.value() if condition == "fly_reset" else None,

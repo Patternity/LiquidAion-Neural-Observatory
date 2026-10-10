@@ -180,6 +180,8 @@ see different contexts.
 | **Save session** / **Open replay** / **Restore session** | Save the recording (states, messages, settings) as JSON; replay it offline; or restore its histories and state into a live model. |
 | **Export dashboard** | Writes a screenshot, the anatomy image, telemetry, conversations and experiment results. |
 | **Pause view** | Freezes rendering only. The dynamics keep running. |
+| **LANGUAGE MODEL** | Selects the substrate: Qwen3-0.6B (Instruct, the original baseline), Qwen3-0.6B-Base, Qwen3-1.7B-Base or Qwen3-4B-Base (NF4). **Load** unloads the current model, downloads the new one once if needed, resets the reservoir state and clears the chats. The connectome is never changed. |
+| **MODEL COUPLING · Capture / Steering layer** | The two hook points, zero-based, limited to the loaded model's layers (capture < steering). Hidden size and projections adapt automatically. Changes apply before the next operation and keep the reservoir state. See [docs/MODELS.md](docs/MODELS.md). |
 | **RESERVOIR DYNAMICS · Leak rate** | Leak dt/tau of the reservoir update (baseline 0.200, range 0.005–0.5). It changes the live equation from the next update and keeps the state. Smaller: slower change and potentially longer persistence. Larger: faster response. |
 | **Run controlled comparison** / **A · B · C** | Run the experiments below on temporary copies. The live chats and state are not affected. |
 

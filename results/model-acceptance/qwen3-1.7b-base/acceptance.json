@@ -1,0 +1,172 @@
+{
+  "profile": {
+    "key": "qwen3-1.7b-base",
+    "model_id": "Qwen/Qwen3-1.7B-Base",
+    "display": "Qwen3-1.7B-Base",
+    "kind": "base",
+    "revision": "ea980cb0a6c2ae4b936e82123acc929f1cec04c1",
+    "dtype": "bfloat16",
+    "quantization": null,
+    "attention": "sdpa",
+    "capture_layer": 6,
+    "steer_layer": 14,
+    "interaction": "raw"
+  },
+  "loaded": {
+    "profile": "qwen3-1.7b-base",
+    "display": "Qwen3-1.7B-Base",
+    "kind": "base",
+    "interaction": "raw",
+    "model_id": "Qwen/Qwen3-1.7B-Base",
+    "source": "Qwen/Qwen3-1.7B-Base",
+    "revision": "ea980cb0a6c2ae4b936e82123acc929f1cec04c1",
+    "dtype": "bfloat16",
+    "quantization": null,
+    "attention": "sdpa",
+    "load_seconds": 0.8903761990004568,
+    "device": "cuda",
+    "model_type": "qwen3",
+    "hidden_size": 2048,
+    "num_hidden_layers": 28,
+    "vocab_size": 151936,
+    "max_position_embeddings": 32768,
+    "eos_token_ids": [
+      151643
+    ],
+    "capture_layer": 6,
+    "steer_layer": 14,
+    "features": 64,
+    "reservoir_neurons": 512,
+    "projection_fingerprint": "27c3690325aba3dfd2b2babe69a41efd20f6574f09f62c78ddce15bcf3f70719",
+    "gpu_allocated_bytes": 3441689088,
+    "gpu_reserved_bytes": 3451912192
+  },
+  "load_seconds_total": 0.9368632730001991,
+  "after_load_allocated_bytes": 3441689088,
+  "checks": [
+    {
+      "check": "weights loaded from the pinned revision",
+      "passed": true,
+      "detail": "ea980cb0a6c2ae4b936e82123acc929f1cec04c1"
+    },
+    {
+      "check": "architecture read from config",
+      "passed": true,
+      "detail": "28 layers, hidden 2048, vocab 151936"
+    },
+    {
+      "check": "projection sizes follow hidden size",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "no CPU offload",
+      "passed": true,
+      "detail": "['cuda:0']"
+    },
+    {
+      "check": "clean and fly generation",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "base profile input is the raw seed (no template)",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "no hooks left after generation",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "same-model layer change keeps projections",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "steering changes logits at both layer pairs",
+      "passed": true,
+      "detail": "['6->14: KL 1.58e-03', '14->26: KL 4.22e-03']"
+    },
+    {
+      "check": "layer pairs give different effects (the selection is used)",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "no hooks left after experiments",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "continuous generation (clean, fly)",
+      "passed": true,
+      "detail": "clean 36.2 tok/s, fly 31.7 tok/s"
+    },
+    {
+      "check": "fits in 8 GB",
+      "passed": true,
+      "detail": "peak reserved 3.59 GiB"
+    }
+  ],
+  "device_placement": [
+    "cuda:0"
+  ],
+  "parameter_dtypes": [
+    "torch.bfloat16"
+  ],
+  "generate_pair": {
+    "clean": {
+      "text": ", когда снег лежал на земле, и лёд покрывал реки и озёра, вдруг наступила тёплая весна. Ветер разом осл",
+      "stop_reason": "max_new_tokens",
+      "tokens_per_second": 45.64803789072717,
+      "tokens": 48
+    },
+    "fly": {
+      "text": ", когда снег лежал на земле, и лёд покрывал реки и озёра, вдруг появилась волна. Она была необычной. Она не была",
+      "stop_reason": "max_new_tokens",
+      "tokens_per_second": 52.67239358377761,
+      "tokens": 48
+    }
+  },
+  "prompt_ids_are_raw": true,
+  "logit_effects": [
+    {
+      "capture_layer": 6,
+      "steer_layer": 14,
+      "matched_steps": 24,
+      "mean_kl_baseline_to_condition": 0.0015771333062124006,
+      "first_token_kl": 0.0011277684624339084,
+      "logit_rms_difference": 0.10348609834909439,
+      "argmax_disagreement_fraction": 0.0,
+      "mean_delta_relative_rms": 0.041908314606795706
+    },
+    {
+      "capture_layer": 14,
+      "steer_layer": 26,
+      "matched_steps": 24,
+      "mean_kl_baseline_to_condition": 0.004218109966174118,
+      "first_token_kl": 0.0061714026955596284,
+      "logit_rms_difference": 0.17740264534950256,
+      "argmax_disagreement_fraction": 0.0,
+      "mean_delta_relative_rms": 0.04370080617566904
+    }
+  ],
+  "continuous": {
+    "clean": {
+      "tokens_per_second": 36.200567484791776,
+      "peak_allocated_bytes": 3497544704,
+      "peak_reserved_bytes": 3858759680,
+      "reservoir_advances_per_token": 0.0
+    },
+    "fly": {
+      "tokens_per_second": 31.728033283875543,
+      "peak_allocated_bytes": 3497544704,
+      "peak_reserved_bytes": 3858759680,
+      "reservoir_advances_per_token": 2.0
+    }
+  },
+  "continuous_divergence": 0,
+  "passed": true
+}

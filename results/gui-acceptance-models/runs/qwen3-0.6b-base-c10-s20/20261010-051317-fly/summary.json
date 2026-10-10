@@ -1,0 +1,23 @@
+{
+  "condition": "fly",
+  "reset_interval": null,
+  "stop_reason": "total_tokens",
+  "generated_tokens": 120,
+  "seconds": 3.468383562998497,
+  "tokens_per_second": 34.59824953623562,
+  "window": 128,
+  "max_window_seen": 128,
+  "window_shifts": 5,
+  "forward_calls": 120,
+  "reservoir_advances": 240,
+  "resets": [],
+  "eos_suppressed": [],
+  "peak_gpu_allocated_bytes": 1241089024,
+  "probes": [],
+  "stream_tokens": 120,
+  "external_tokens": 0,
+  "injections": [],
+  "events": [],
+  "final_leak": 0.2,
+  "final_state_rms": 0.1787152137315291
+}

@@ -21,6 +21,8 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDoubleSpinBo
     QVBoxLayout, QWidget)
 
 from .brain_view import BrainView
+from .model_gui import ModelPanel
+from .models import PROFILES, get_profile
 
 # GUI bounds for generation settings; the engine validates the actual context budget.
 NEW_TOKENS_MAX = 4096
@@ -40,9 +42,26 @@ def apply_preferences(config, preferences):
         context = int(preferences.value("generation/max_context_tokens", config.max_context_tokens))
         candidate = replace(config, max_new_tokens=new_tokens, max_context_tokens=context)
         candidate.validate()
-        return candidate
+        config = candidate
     except (TypeError, ValueError):
-        return config
+        pass
+    if hasattr(config, "model_profile"):
+        profile = str(preferences.value("model/profile", config.model_profile))
+        if profile in PROFILES:
+            capture, steer = saved_layers(preferences, profile)
+            config = replace(config, model_profile=profile, capture_layer=capture, steer_layer=steer)
+    return config
+
+
+def saved_layers(preferences, profile_key):
+    """The operator's last applied layer pair for a profile, or the profile defaults."""
+    profile = get_profile(profile_key)
+    try:
+        capture = int(preferences.value(f"model/{profile_key}/capture_layer", profile.capture_layer))
+        steer = int(preferences.value(f"model/{profile_key}/steer_layer", profile.steer_layer))
+        return (capture, steer) if 0 <= capture < steer else (profile.capture_layer, profile.steer_layer)
+    except (TypeError, ValueError):
+        return profile.capture_layer, profile.steer_layer
 
 
 STYLE = """
@@ -137,7 +156,8 @@ class EngineWorker(QObject):
                 self.engine = ObservatoryEngine(self.model_path, self.graph_dir, device=self.device, config=self.config)
                 if self.debug_log:
                     self.engine.enable_debug_log(*self.debug_log)
-                self.initialized.emit({"mode": "live", "node_ids": self.engine.node_ids})
+                self.initialized.emit({"mode": "live", "node_ids": self.engine.node_ids,
+                                       "model": self.engine.model_info()})
                 self.telemetry.emit(self.engine.telemetry.snapshot())
             self.timer = QTimer(self)
             self.timer.setInterval(250)
@@ -234,6 +254,8 @@ class EngineWorker(QObject):
                     on_telemetry=self.publish)
             elif command == "configure":
                 result = self.engine.configure(**payload)
+            elif command == "switch_model":
+                result = self.engine.switch_model(payload["profile"], payload.get("capture"), payload.get("steer"))
             elif command in {"reset_state", "clear_chats", "new_session"}:
                 self.replay = None
                 result = getattr(self.engine, command)()
@@ -420,6 +442,8 @@ class ObservatoryWindow(QMainWindow):
         if self.node_table["root_id"].tolist() != self.node_ids:
             raise ValueError("Anatomical neuron IDs differ from the connectome order")
         self.latest = {}
+        self.model_info = None
+        self.confirm_model_switch = self.default_confirm_model_switch
         self.science_result = None
         self.active_operation = None
         self.selected = None
@@ -557,6 +581,10 @@ class ObservatoryWindow(QMainWindow):
         leak_help.setWordWrap(True)
         leak_help.setStyleSheet("color:#8c9fbd;font-size:10px")
         dynamics_layout.addWidget(leak_help)
+        self.model_panel = ModelPanel(getattr(config, "model_profile", "qwen3-0.6b"))
+        self.model_panel.load_requested.connect(self.request_model)
+        self.model_panel.layers_requested.connect(self.request_layers)
+        side_layout.addWidget(self.model_panel)
         coupling_column = QVBoxLayout()
         coupling_column.addWidget(controls)
         coupling_column.addWidget(dynamics)
@@ -707,6 +735,7 @@ class ObservatoryWindow(QMainWindow):
         for widget in (self.send, self.scientific, self.steering, self.feedback, self.strength, self.feedback_strength,
                        self.max_tokens, self.context_tokens, self.continuous_button, self.leak, *self.demo_buttons):
             widget.setEnabled(enabled)
+        self.model_panel.set_enabled(enabled)
         self.cancel.setEnabled(busy and not self.is_replay)
 
     @Slot(dict)
@@ -715,6 +744,8 @@ class ObservatoryWindow(QMainWindow):
         if not self.is_replay:
             self.live_engine_available = True
             self.command.emit("configure", self.generation_settings())
+            if information.get("model"):
+                self.show_model(information["model"])
         self._set_busy(False)
         self.status.setText("OFFLINE REPLAY · model not required" if self.is_replay else "LIVE · model ready · idle dynamics active")
         if self.is_replay:
@@ -775,6 +806,41 @@ class ObservatoryWindow(QMainWindow):
         self.preferences.sync()
         if self.live_engine_available and not self.is_replay:
             self.command.emit("configure", settings)
+
+    def show_model(self, info):
+        self.model_info = info
+        self.model_panel.set_model_info(info)
+        raw = info.get("interaction") == "raw"
+        self.prompt.setPlaceholderText(
+            "Raw text, appended to each branch's own text; the Base model continues it (no chat template, no roles)."
+            if raw else "Shared prompt for CLEAN and FLY. Each branch keeps its own history.")
+        if self.continuous_dialog is not None:
+            self.continuous_dialog.set_model_info(info)
+
+    def default_confirm_model_switch(self, display):
+        answer = QMessageBox.question(self, "Switch language model",
+            f"Load {display}?\n\nThe current model is unloaded, the reservoir state is reset to zero and both "
+            "chats are cleared. Save the session first if you need it. The connectome is unchanged.")
+        return answer == QMessageBox.Yes
+
+    def request_model(self, key):
+        if not self.live_engine_available or not self.send.isEnabled():
+            self.on_error("Stop or finish the current operation before switching the language model")
+            return
+        profile = get_profile(key)
+        if not self.confirm_model_switch(profile.display):
+            self.model_panel.set_model_info(self.model_info)
+            return
+        self.preferences.setValue("model/profile", key)
+        self.preferences.sync()
+        capture, steer = saved_layers(self.preferences, key)
+        self._set_busy(True)
+        self.active_operation = "switch_model"
+        self.status.setText(f"LOADING MODEL · {profile.display} · downloading once if not cached")
+        self.command.emit("switch_model", {"profile": key, "capture": capture, "steer": steer})
+
+    def request_layers(self, capture, steer):
+        self.command.emit("configure", {"capture_layer": capture, "steer_layer": steer})
 
     def configure(self):
         self.command.emit("configure", {"steering_enabled": self.steering.isChecked(),
@@ -882,6 +948,8 @@ class ObservatoryWindow(QMainWindow):
             self.continuous_dialog.start_requested.connect(self.start_continuous)
             self.continuous_dialog.stop_requested.connect(self.cancel_generation)
             self.continuous_dialog.inject_requested.connect(self.inject_continuous)
+            if self.model_info is not None:
+                self.continuous_dialog.set_model_info(self.model_info)
             self.continuous_dialog.leak_requested.connect(self.set_continuous_leak)
             if self.worker is not None:
                 self.worker.continuous_progress.connect(self.continuous_dialog.on_progress)
@@ -907,6 +975,30 @@ class ObservatoryWindow(QMainWindow):
     def on_finished(self, command, result):
         if command == "continuous" and self.continuous_dialog is not None:
             self.continuous_dialog.on_finished(result)
+        if command == "switch_model":
+            self.active_operation = None
+            self._set_busy(False)
+            if isinstance(result, dict) and not result.get("error"):
+                self.clean_chat.clear()
+                self.fly_chat.clear()
+                for plot in (self.rms_plot, self.delta_plot, self.steering_plot, self.neuron_plot):
+                    plot.clear()
+                self.show_model(result)
+                self.status.setText(f"LIVE · {result['display']} loaded in {result.get('load_seconds') or 0:.0f} s")
+            elif self.model_info is not None:
+                self.model_panel.set_model_info(self.model_info)
+        if command == "configure" and isinstance(result, dict) and "capture_layer" in result and not result.get("error"):
+            self.model_panel.mark_applied(result["capture_layer"], result["steer_layer"])
+            if self.model_info is not None:
+                key = self.model_info["profile"]
+                self.model_info = {**self.model_info, "capture_layer": result["capture_layer"],
+                                   "steer_layer": result["steer_layer"]}
+                self.preferences.setValue(f"model/{key}/capture_layer", result["capture_layer"])
+                self.preferences.setValue(f"model/{key}/steer_layer", result["steer_layer"])
+                if self.continuous_dialog is not None:
+                    self.continuous_dialog.set_model_info(self.model_info)
+        if command == "configure" and isinstance(result, dict) and result.get("error") and self.model_info is not None:
+            self.model_panel.set_model_info(self.model_info)
         if command in {"generate", "scientific", "demo_clean_vs_fly", "demo_random_topology", "demo_persistence",
                        "continuous"}:
             self.active_operation = None

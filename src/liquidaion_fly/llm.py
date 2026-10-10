@@ -1,6 +1,7 @@
 """Instrument genuine decoder-layer activations with a state-dependent residual."""
 from __future__ import annotations
 
+import hashlib
 import time
 from typing import Any
 
@@ -42,6 +43,14 @@ class Coupling:
         self.cue: np.ndarray | None = None
         self.current: dict[str, Any] = {}
         self.token_position = 0
+
+    @property
+    def projection_fingerprint(self) -> str:
+        """Identifies the fixed encoder, readout and decoder; independent of the hooked layers."""
+        digest = hashlib.sha256()
+        for array in (self.encoder.numpy(), self.readout, self.decoder.numpy()):
+            digest.update(np.ascontiguousarray(array).tobytes())
+        return digest.hexdigest()
 
     def features(self, hidden: torch.Tensor) -> np.ndarray:
         x = hidden.detach().float()
@@ -127,20 +136,57 @@ class Coupling:
 
 
 class LocalLLM:
+    """One frozen causal LM. Without a profile this is the original float16/eager loading path."""
+
     def __init__(self, model: str, device: str = "cpu", revision: str | None = None,
-                 threads: int = 4):
+                 threads: int = 4, profile: Any = None):
         torch.set_num_threads(threads)
-        if device == "cuda" and not torch.cuda.is_available():
+        if device.startswith("cuda") and not torch.cuda.is_available():
             raise RuntimeError("CUDA was requested but is unavailable")
+        started = time.perf_counter()
         self.device = torch.device(device)
+        self.profile = profile
         self.tokenizer = AutoTokenizer.from_pretrained(model, revision=revision, trust_remote_code=False)
-        dtype = torch.float32 if device == "cpu" else torch.float16
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model, revision=revision, dtype=dtype, trust_remote_code=False,
-            attn_implementation="eager").to(self.device).eval()
+        cpu = self.device.type == "cpu"
+        dtype_name = "float32" if cpu else (profile.dtype if profile else "float16")
+        dtype = getattr(torch, dtype_name)
+        attention = profile.attention if profile else "eager"
+        quantization = profile.quantization if profile else None
+        if quantization:
+            if quantization != "nf4":
+                raise ValueError(f"Unsupported quantization {quantization!r}")
+            if cpu:
+                raise RuntimeError("NF4 quantization requires CUDA; this profile cannot run on CPU")
+            from transformers import BitsAndBytesConfig
+            config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
+                                        bnb_4bit_compute_dtype=dtype, bnb_4bit_use_double_quant=False)
+            index = self.device.index if self.device.index is not None else torch.cuda.current_device()
+            # bitsandbytes places the weights itself; the model must not be moved with .to() afterwards.
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model, revision=revision, dtype=dtype, quantization_config=config, device_map={"": index},
+                trust_remote_code=False, attn_implementation=attention).eval()
+            placement = set(str(v) for v in (getattr(self.model, "hf_device_map", {}) or {}).values())
+            if placement - {str(index), f"cuda:{index}"}:
+                raise RuntimeError(f"Quantized model was not placed entirely on GPU {index}: {placement}")
+        else:
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model, revision=revision, dtype=dtype, trust_remote_code=False,
+                attn_implementation=attention).to(self.device).eval()
         self.model.requires_grad_(False)
         self.model_name = model
         self.revision = revision or getattr(self.model.config, "_commit_hash", None)
+        self.dtype_name = dtype_name
+        self.quantization = quantization
+        self.attention = attention
+        self.load_seconds = time.perf_counter() - started
+
+    def architecture(self) -> dict[str, Any]:
+        """Dimensions read from the loaded model, never from profile labels."""
+        config = self.model.config
+        return {"model_type": config.model_type, "hidden_size": config.hidden_size,
+                "num_hidden_layers": len(self.model.model.layers), "vocab_size": config.vocab_size,
+                "max_position_embeddings": getattr(config, "max_position_embeddings", None),
+                "eos_token_ids": sorted(self.stop_token_ids)}
 
     @property
     def stop_token_ids(self) -> set[int]:

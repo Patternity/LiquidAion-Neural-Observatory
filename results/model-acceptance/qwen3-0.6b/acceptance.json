@@ -1,0 +1,173 @@
+{
+  "profile": {
+    "key": "qwen3-0.6b",
+    "model_id": "Qwen/Qwen3-0.6B",
+    "display": "Qwen3-0.6B (Instruct)",
+    "kind": "instruct",
+    "revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+    "dtype": "float16",
+    "quantization": null,
+    "attention": "eager",
+    "capture_layer": 6,
+    "steer_layer": 14,
+    "interaction": "chat"
+  },
+  "loaded": {
+    "profile": "qwen3-0.6b",
+    "display": "Qwen3-0.6B (Instruct)",
+    "kind": "instruct",
+    "interaction": "chat",
+    "model_id": "Qwen/Qwen3-0.6B",
+    "source": "Qwen/Qwen3-0.6B",
+    "revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+    "dtype": "float16",
+    "quantization": null,
+    "attention": "eager",
+    "load_seconds": 0.846403964998899,
+    "device": "cuda",
+    "model_type": "qwen3",
+    "hidden_size": 1024,
+    "num_hidden_layers": 28,
+    "vocab_size": 151936,
+    "max_position_embeddings": 40960,
+    "eos_token_ids": [
+      151643,
+      151645
+    ],
+    "capture_layer": 6,
+    "steer_layer": 14,
+    "features": 64,
+    "reservoir_neurons": 512,
+    "projection_fingerprint": "44cd2e997893e23ed6e06cab915645c14e190997a4628591339cfe180270a194",
+    "gpu_allocated_bytes": 1192114688,
+    "gpu_reserved_bytes": 1216348160
+  },
+  "load_seconds_total": 0.89023137699769,
+  "after_load_allocated_bytes": 1192114688,
+  "checks": [
+    {
+      "check": "weights loaded from the pinned revision",
+      "passed": true,
+      "detail": "c1899de289a04d12100db370d81485cdf75e47ca"
+    },
+    {
+      "check": "architecture read from config",
+      "passed": true,
+      "detail": "28 layers, hidden 1024, vocab 151936"
+    },
+    {
+      "check": "projection sizes follow hidden size",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "no CPU offload",
+      "passed": true,
+      "detail": "['cuda:0']"
+    },
+    {
+      "check": "clean and fly generation",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "base profile input is the raw seed (no template)",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "no hooks left after generation",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "same-model layer change keeps projections",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "steering changes logits at both layer pairs",
+      "passed": true,
+      "detail": "['6->14: KL 3.30e-03', '14->26: KL 5.48e-03']"
+    },
+    {
+      "check": "layer pairs give different effects (the selection is used)",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "no hooks left after experiments",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "continuous generation (clean, fly)",
+      "passed": true,
+      "detail": "clean 37.0 tok/s, fly 32.8 tok/s"
+    },
+    {
+      "check": "fits in 8 GB",
+      "passed": true,
+      "detail": "peak reserved 1.44 GiB"
+    }
+  ],
+  "device_placement": [
+    "cuda:0"
+  ],
+  "parameter_dtypes": [
+    "torch.float16"
+  ],
+  "generate_pair": {
+    "clean": {
+      "text": "Привет! Я — это модель, которая помогает в разработке и продвижении продуктов. Я не имею собственных целей или предпочтений, но могу помочь вам с различными задачами",
+      "stop_reason": "max_new_tokens",
+      "tokens_per_second": 47.32686488942426,
+      "tokens": 48
+    },
+    "fly": {
+      "text": "Привет! Я — это модель, которая помогает в разработке и продвижении продуктов. Я могу помочь с разработкой, продвижением и другими задачами.",
+      "stop_reason": "eos",
+      "tokens_per_second": 53.72637033631181,
+      "tokens": 43
+    }
+  },
+  "prompt_ids_are_raw": true,
+  "logit_effects": [
+    {
+      "capture_layer": 6,
+      "steer_layer": 14,
+      "matched_steps": 24,
+      "mean_kl_baseline_to_condition": 0.003304408778550602,
+      "first_token_kl": 6.545051456114813e-05,
+      "logit_rms_difference": 0.12620316445827484,
+      "argmax_disagreement_fraction": 0.0,
+      "mean_delta_relative_rms": 0.04946630991374453
+    },
+    {
+      "capture_layer": 14,
+      "steer_layer": 26,
+      "matched_steps": 24,
+      "mean_kl_baseline_to_condition": 0.005478802303076776,
+      "first_token_kl": 3.21379774434768e-05,
+      "logit_rms_difference": 0.2143443524837494,
+      "argmax_disagreement_fraction": 0.041666666666666664,
+      "mean_delta_relative_rms": 0.04600626944253842
+    }
+  ],
+  "continuous": {
+    "clean": {
+      "tokens_per_second": 37.001160081823116,
+      "peak_allocated_bytes": 1249575936,
+      "peak_reserved_bytes": 1543503872,
+      "reservoir_advances_per_token": 0.0
+    },
+    "fly": {
+      "tokens_per_second": 32.81712921091866,
+      "peak_allocated_bytes": 1249575936,
+      "peak_reserved_bytes": 1543503872,
+      "reservoir_advances_per_token": 2.0
+    }
+  },
+  "continuous_divergence": 2,
+  "passed": true
+}

@@ -444,3 +444,73 @@ def test_dialog_text_matches_exported_run_text(window, monkeypatch, tmp_path):
     saved = load_run(tmp_path / "run")
     assert dialog.text.toPlainText() == saved["text"], (repr(dialog.text.toPlainText()[-60:]), repr(saved["text"][-60:]))
     shiboken6.delete(worker)
+
+
+def model_info(profile="qwen3-0.6b", layers=28, hidden=1024, capture=6, steer=14, kind="instruct"):
+    return {"profile": profile, "display": profile, "kind": kind, "interaction": "chat" if kind == "instruct" else "raw",
+            "model_id": "x", "revision": "c" * 40, "dtype": "float16", "quantization": None, "attention": "eager",
+            "device": "cuda", "num_hidden_layers": layers, "hidden_size": hidden, "capture_layer": capture,
+            "steer_layer": steer, "features": 64, "reservoir_neurons": 512, "projection_fingerprint": "ab" * 32}
+
+
+def test_model_coupling_ranges_follow_layer_count_and_enforce_order(window):
+    calls = []
+    window.command.connect(lambda command, payload: calls.append((command, payload)))
+    panel = window.model_panel
+    window.show_model(model_info())
+    assert (panel.capture.minimum(), panel.capture.maximum()) == (0, 26)
+    assert (panel.steer.minimum(), panel.steer.maximum()) == (7, 27)
+    assert panel.capture_max.text() == "/ 27" and "hidden size:   1024" in panel.dimensions.text()
+    panel.capture.setValue(20)
+    assert panel.steer.value() == 21, "Steering moves above a capture layer that passed it"
+    assert calls[-1] == ("configure", {"capture_layer": 20, "steer_layer": 21})
+    assert panel.state.text().startswith("Pending")
+    window.on_finished("configure", {"capture_layer": 20, "steer_layer": 21})
+    assert panel.state.text() == "Applied: 20 → 21"
+    assert int(window.preferences.value("model/qwen3-0.6b/capture_layer")) == 20
+    window.show_model(model_info("qwen3-4b-base", 36, 2560, 8, 18, "base"))
+    assert panel.capture.maximum() == 34 and panel.steer.maximum() == 35 and panel.capture_max.text() == "/ 35"
+    assert "Raw continuation" in panel.interaction.text() and "Raw text" in window.prompt.placeholderText()
+    window._set_busy(True)
+    assert not panel.capture.isEnabled() and not panel.load.isEnabled(), "No layer or model changes mid-generation"
+    window._set_busy(False)
+
+
+def test_model_switch_requires_confirmation_and_persists_choice(window):
+    calls = []
+    window.command.connect(lambda command, payload: calls.append((command, payload)))
+    window.show_model(model_info())
+    window.confirm_model_switch = lambda display: False
+    window.model_panel.combo.setCurrentIndex(window.model_panel.combo.findData("qwen3-1.7b-base"))
+    window.model_panel.load.click()
+    assert not any(command == "switch_model" for command, _ in calls)
+    assert window.model_panel.combo.currentData() == "qwen3-0.6b", "Declined switch restores the selector"
+    window.confirm_model_switch = lambda display: True
+    window.model_panel.combo.setCurrentIndex(window.model_panel.combo.findData("qwen3-1.7b-base"))
+    window.model_panel.load.click()
+    assert calls[-1] == ("switch_model", {"profile": "qwen3-1.7b-base", "capture": 6, "steer": 14})
+    assert window.preferences.value("model/profile") == "qwen3-1.7b-base"
+    assert not window.send.isEnabled()
+    window.open_continuous()
+    window.on_finished("switch_model", model_info("qwen3-1.7b-base", 28, 2048, 6, 14, "base"))
+    assert window.send.isEnabled() and window.model_panel.combo.currentData() == "qwen3-1.7b-base"
+    dialog = window.continuous_dialog
+    assert "qwen3-1.7b-base" in dialog.model_label.text() and "capture 6 → steering 14" in dialog.model_label.text()
+    assert not dialog.prompt_policy.model().item(dialog.prompt_policy.findData("chat_prefix")).isEnabled()
+    payload = dialog.payload()
+    assert "qwen3-1.7b-base-c6-s14" in payload["output"], "Runs of different substrates never collide"
+
+
+def test_saved_model_preference_applies_at_launch(app, tmp_path):
+    from liquidaion_fly.observatory_gui import apply_preferences
+    preferences = QSettings(str(tmp_path / "prefs.ini"), QSettings.IniFormat)
+    assert apply_preferences(ObservatoryConfig(), preferences).model_profile == "qwen3-0.6b"
+    preferences.setValue("model/profile", "qwen3-4b-base")
+    config = apply_preferences(ObservatoryConfig(), preferences)
+    assert (config.model_profile, config.capture_layer, config.steer_layer) == ("qwen3-4b-base", 8, 18)
+    preferences.setValue("model/qwen3-4b-base/capture_layer", 10)
+    preferences.setValue("model/qwen3-4b-base/steer_layer", 30)
+    config = apply_preferences(ObservatoryConfig(), preferences)
+    assert (config.capture_layer, config.steer_layer) == (10, 30)
+    preferences.setValue("model/profile", "unknown-model")
+    assert apply_preferences(ObservatoryConfig(), preferences).model_profile == "qwen3-0.6b"

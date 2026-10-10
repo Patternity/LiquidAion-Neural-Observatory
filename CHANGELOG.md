@@ -6,6 +6,16 @@ All notable changes to this project are documented here. Versions follow
 ## [Unreleased]
 
 ### Added
+- Four selectable language substrates with pinned revisions (`liquidaion_fly.models`):
+  - Qwen3-0.6B (instruct, the unchanged baseline);
+  - Qwen3-0.6B-Base and Qwen3-1.7B-Base (bfloat16);
+  - Qwen3-4B-Base (4-bit NF4 via bitsandbytes).
+  Model switching from the GUI keeps one model in GPU memory. Base models use raw
+  continuation, with no chat template or role markers.
+- Adjustable capture and steering layers in a MODEL COUPLING panel.
+  - Projection sizes follow the loaded model's hidden size.
+  - The selected layers are recorded per run and per token.
+- `scripts/model_acceptance.py` and `scripts/gui_acceptance_models.py`; `--model-profile` option.
 - Live external injection into continuous generation.
   - Operator text is tokenized as typed and teacher-forced into the stream at token
     boundaries, with no role markers.

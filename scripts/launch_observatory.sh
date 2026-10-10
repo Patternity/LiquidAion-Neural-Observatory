@@ -38,7 +38,8 @@ fi
   || fail "Python 3.12 or newer is required ($runtime_python is older)."
 
 # Exit 0 when every pinned dependency is installed; exit 3 when only the PyTorch
-# build mismatches the requested mode (a CPU wheel in CUDA mode or vice versa).
+# build mismatches the requested mode (a CPU wheel in CUDA mode or vice versa);
+# exit 4 when only bitsandbytes/accelerate (NF4 for the 4B profile, CUDA mode) are missing.
 dependencies_ok() {
   "$runtime_python" - "$mode" <<'PY' >/dev/null 2>&1
 import importlib.metadata
@@ -54,11 +55,22 @@ for spec in project["dependencies"] + project["optional-dependencies"]["desktop"
 # "2.8.0+cpu" satisfies "torch==2.8.0", so check the build explicitly.
 if sys.argv[1] == "cuda" and torch.version.cuda is None:
     sys.exit(3)
+if sys.argv[1] == "cuda":
+    try:
+        import accelerate, bitsandbytes  # noqa: F401
+    except ImportError:
+        sys.exit(4)
 PY
 }
 
 status=0
 dependencies_ok || status=$?
+if [[ $status -eq 4 ]]; then
+  echo "Installing bitsandbytes and accelerate for 4-bit loading of the Qwen3-4B-Base profile."
+  "$runtime_python" -m pip install --no-cache-dir -e '.[quant]'
+  status=0
+  dependencies_ok || status=$?
+fi
 if [[ $status -ne 0 ]]; then
   venv="$project_root/.venv"
   if [[ "$mode" == "cuda" ]]; then
@@ -85,7 +97,9 @@ Free disk space or point LIQUIDAION_PYTHON at an existing interpreter with the d
   fi
   "$runtime_python" -m pip install --no-cache-dir --upgrade pip
   "$runtime_python" -m pip install --no-cache-dir --force-reinstall "torch==$torch_version" --index-url "$index"
-  "$runtime_python" -m pip install --no-cache-dir -e '.[desktop,test]'
+  extras='desktop,test'
+  [[ "$mode" == "cuda" ]] && extras='desktop,test,quant'
+  "$runtime_python" -m pip install --no-cache-dir -e ".[$extras]"
   status=0
   dependencies_ok || status=$?
   [[ $status -eq 0 ]] || fail "Dependencies are still incomplete after installation (status $status)."

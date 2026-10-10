@@ -5,6 +5,7 @@ Telemetry.snapshot and a cancellation Event need to be accessed from the UI.
 """
 from __future__ import annotations
 
+import gc
 import json
 import time
 import uuid
@@ -21,6 +22,7 @@ from .connectome import load_graph, sha256
 from .debuglog import InferenceDebugLog, digest
 from .environment import inspect_environment
 from .llm import Coupling, LocalLLM, compare_logits, stop_token_ids
+from .models import LEGACY_PROFILE, ModelProfile, get_profile, valid_layer_pair
 from .recording import OfflineReplay, SessionRecording
 from .reservoir import Reservoir, random_control
 from .telemetry import Telemetry
@@ -53,6 +55,8 @@ class ObservatoryConfig:
     revision: str | None = None
     # Reservoir leak dt/tau of the update x <- (1-leak)x + leak*tanh(...); 0.2 is the published baseline.
     leak_rate: float = 0.2
+    # Language substrate (see models.PROFILES); the original Qwen3-0.6B unless selected otherwise.
+    model_profile: str = LEGACY_PROFILE
 
     def validate(self) -> None:
         if self.max_context_tokens < 16 or not 1 <= self.max_new_tokens < self.max_context_tokens:
@@ -67,6 +71,7 @@ class ObservatoryConfig:
             raise ValueError("Strength and feedback must lie in [0, 1]")
         if not np.isfinite(self.leak_rate) or not 0 < self.leak_rate <= 1:
             raise ValueError("Leak rate must lie in (0, 1]")
+        get_profile(self.model_profile)
 
 
 @dataclass
@@ -135,11 +140,16 @@ class ObservatoryEngine:
         self.graph_dir = Path(graph_dir)
         self.graph, self.node_ids = load_graph(self.graph_dir)
         self.reservoir = self._new_reservoir(self.graph)
+        self.device = resolved
+        self.profile: ModelProfile = get_profile(self.config.model_profile)
+        # An explicit local directory overrides the download source (legacy --model-path).
+        self.model_path = str(model_path) if model_path is not None and Path(str(model_path)).is_dir() else None
+        if self.profile.key == LEGACY_PROFILE and self.config.revision and self.config.revision != self.profile.revision:
+            raise ValueError("Requested revision differs from the pinned Qwen3-0.6B revision")
+        self.config.revision = self.profile.revision
         # This is the sole LocalLLM and model instance, shared across all conditions.
-        self.llm = LocalLLM(str(model_path), device=str(resolved), revision=self.config.revision,
-                            threads=self.config.threads)
-        if self.config.steer_layer >= len(self.llm.model.model.layers):
-            raise ValueError("Configured layer indices exceed the loaded transformer")
+        self.llm = self._load_llm(self.profile)
+        self._check_layers(self.config)
         self.model_context_limit = getattr(self.llm.model.config, "max_position_embeddings", None)
         self._check_model_context(self.config)
         self.coupling = self._coupling(self.reservoir)
@@ -147,18 +157,7 @@ class ObservatoryEngine:
         self.session_id = uuid.uuid4().hex
         self.turn_index = 0
         self.debug_log: InferenceDebugLog | None = None
-        revision_path = Path(model_path) / "revision.json"
-        revision_info = json.loads(revision_path.read_text()) if revision_path.exists() else {}
-        revision = revision_info.get("revision", self.llm.revision)
-        if self.config.revision and revision and self.config.revision != revision:
-            raise ValueError("Local model revision differs from the requested immutable revision")
-        self.metadata = {"model": str(model_path), "model_revision": revision,
-                         "connectome_hash": sha256(self.graph_dir / "edges.csv"),
-                         "node_hash": sha256(self.graph_dir / "nodes.csv"),
-                         "reservoir_fingerprint": self.reservoir.fingerprint,
-                         "nodes": len(self.node_ids), "edges": int(self.graph.nnz),
-                         "hardware": {**inspect_environment(), "device": str(resolved)},
-                         "decoding": "greedy", "weights": "pretrained"}
+        self.metadata = self._build_metadata()
         self.recording = SessionRecording(self.metadata)
         self._feedback_events = 0
         self.telemetry = Telemetry(**self.metadata, device=str(resolved), status="ready", branch=None,
@@ -176,6 +175,117 @@ class ObservatoryEngine:
         return MeasuredCoupling(reservoir, self.llm.model.config.hidden_size,
                                 self.config.capture_layer, self.config.steer_layer,
                                 strength, feedback, mode=mode, seed=self.config.seed)
+
+    # ------------------------------------------------------------ language model
+
+    def _load_llm(self, profile: ModelProfile) -> Any:
+        source = self.model_path if self.model_path and profile.key == self.profile.key else profile.model_id
+        llm = LocalLLM(str(source), device=str(self.device), revision=profile.revision,
+                       threads=self.config.threads, profile=profile)
+        if source == self.model_path:
+            revision_path = Path(source) / "revision.json"
+            recorded = json.loads(revision_path.read_text()).get("revision") if revision_path.exists() else None
+            if recorded and recorded != profile.revision:
+                raise ValueError("Local model directory revision differs from the pinned profile revision")
+        return llm
+
+    def model_layers(self) -> int:
+        return len(self.llm.model.model.layers)
+
+    def _check_layers(self, config: ObservatoryConfig) -> None:
+        layers = self.model_layers()
+        if not valid_layer_pair(config.capture_layer, config.steer_layer, layers):
+            raise ValueError(f"Layer pair {config.capture_layer} -> {config.steer_layer} is invalid for a "
+                             f"{layers}-layer model (capture 0..{layers - 2}, steering capture+1..{layers - 1})")
+
+    def model_info(self) -> dict[str, Any]:
+        """The loaded substrate as measured, for the GUI and every recording."""
+        llm = self.llm
+        architecture = llm.architecture() if hasattr(llm, "architecture") else {
+            "hidden_size": llm.model.config.hidden_size, "num_hidden_layers": self.model_layers()}
+        info = {"profile": self.profile.key, "display": self.profile.display, "kind": self.profile.kind,
+                "interaction": self.profile.interaction, "model_id": self.profile.model_id,
+                "source": self.model_path or self.profile.model_id, "revision": self.profile.revision,
+                "dtype": getattr(llm, "dtype_name", None), "quantization": getattr(llm, "quantization", None),
+                "attention": getattr(llm, "attention", None), "load_seconds": getattr(llm, "load_seconds", None),
+                "device": str(self.device), **architecture,
+                "capture_layer": self.config.capture_layer, "steer_layer": self.config.steer_layer,
+                "features": self.config.features, "reservoir_neurons": len(self.node_ids),
+                "projection_fingerprint": self.coupling.projection_fingerprint if hasattr(self, "coupling") else None}
+        if self.device.type == "cuda":
+            info["gpu_allocated_bytes"] = torch.cuda.memory_allocated(self.device)
+            info["gpu_reserved_bytes"] = torch.cuda.memory_reserved(self.device)
+        return info
+
+    def _build_metadata(self) -> dict[str, Any]:
+        return {"model": self.model_path or self.profile.model_id, "model_revision": self.profile.revision,
+                "model_profile": self.profile.key, "language_model": self.model_info(),
+                "connectome_hash": sha256(self.graph_dir / "edges.csv"),
+                "node_hash": sha256(self.graph_dir / "nodes.csv"),
+                "reservoir_fingerprint": self.reservoir.fingerprint,
+                "nodes": len(self.node_ids), "edges": int(self.graph.nnz),
+                "hardware": {**inspect_environment(), "device": str(self.device)},
+                "decoding": "greedy", "weights": "pretrained"}
+
+    def switch_model(self, key: str, capture_layer: int | None = None, steer_layer: int | None = None) -> dict:
+        """Replace the language substrate: one model in memory, fresh reservoir state and sessions.
+
+        The reservoir state was driven by the previous model's activations and the projections
+        depend on its hidden size, so neither is carried over. The connectome is unchanged.
+        """
+        with self._lock:
+            target = get_profile(key)
+            previous = self.profile
+            old_info = self.model_info()
+            self.coupling.detach()
+            if self._hook_count():
+                raise RuntimeError("Forward hooks remain on the model; refusing to switch")
+            self.llm = None
+            self.coupling = None
+            for session in self.sessions.values():
+                session.cache = session.cached_ids = None
+            gc.collect()
+            if self.device.type == "cuda":
+                torch.cuda.empty_cache()
+            released = torch.cuda.memory_allocated(self.device) if self.device.type == "cuda" else None
+            capture = target.capture_layer if capture_layer is None else capture_layer
+            steer = target.steer_layer if steer_layer is None else steer_layer
+            try:
+                self.profile = target
+                self.llm = self._load_llm(target)
+                candidate = ObservatoryConfig(**{**asdict(self.config), "model_profile": target.key,
+                                                 "revision": target.revision, "capture_layer": capture,
+                                                 "steer_layer": steer})
+                candidate.validate()
+                self._check_layers(candidate)
+            except BaseException as exc:
+                # Recover the previous substrate so the GUI stays usable; report the real error.
+                self.profile = previous
+                self.llm = None
+                gc.collect()
+                if self.device.type == "cuda":
+                    torch.cuda.empty_cache()
+                self.llm = self._load_llm(previous)
+                self.coupling = self._coupling(self.reservoir)
+                raise RuntimeError(f"Loading {target.display} failed ({type(exc).__name__}: {exc}); "
+                                   f"{previous.display} was restored") from exc
+            self.config = candidate
+            self.model_context_limit = getattr(self.llm.model.config, "max_position_embeddings", None)
+            if self.config.max_context_tokens > (self.model_context_limit or self.config.max_context_tokens):
+                self.config.max_context_tokens = self.model_context_limit
+            self.reservoir = self._new_reservoir(self.graph)
+            self.coupling = self._coupling(self.reservoir)
+            self.sessions = {name: ChatSession([]) for name in ("clean", "fly")}
+            self.session_id = uuid.uuid4().hex
+            self.turn_index = 0
+            self._feedback_events = 0
+            self.metadata = self._build_metadata()
+            self.recording = SessionRecording(self.metadata)
+            self.recording.append("model_switched", previous=old_info, current=self.model_info(),
+                                  gpu_allocated_after_release=released, reservoir="reset to zero (new substrate)")
+            self.telemetry.update(**{key: value for key, value in self.metadata.items()})
+            self._publish("model_switched", status="ready", branch=None, generated_tokens=0)
+            return self.model_info()
 
     def _new_reservoir(self, graph: Any) -> Reservoir:
         """A zero-state reservoir with the engine's projections and current leak rate."""
@@ -224,16 +334,30 @@ class ObservatoryEngine:
     def configure(self, **settings: Any) -> dict:
         with self._lock:
             mutable = {"strength", "feedback", "steering_enabled", "feedback_enabled", "max_new_tokens",
-                       "max_context_tokens", "leak_rate"}
+                       "max_context_tokens", "leak_rate", "capture_layer", "steer_layer"}
             if set(settings) - mutable:
-                raise ValueError("Only runtime steering, feedback, leak and context settings may be configured")
+                raise ValueError("Only runtime steering, feedback, leak, layer and context settings may be configured")
             candidate = ObservatoryConfig(**{**asdict(self.config), **settings})
             candidate.validate()
             self._check_model_context(candidate)
+            self._check_layers(candidate)
+            old_layers = (self.config.capture_layer, self.config.steer_layer)
+            layers_changed = (candidate.capture_layer, candidate.steer_layer) != old_layers
             context_changed = candidate.max_context_tokens != self.config.max_context_tokens
             old_leak = self.reservoir.leak
             leak_changed = candidate.leak_rate != old_leak
             self.config = candidate
+            if layers_changed:
+                # Applied between operations (the engine lock excludes running generation). The
+                # projections do not depend on the layers; the reservoir state is kept.
+                fingerprint = self.coupling.projection_fingerprint
+                self.coupling = self._coupling(self.reservoir)
+                if self.coupling.projection_fingerprint != fingerprint:
+                    raise RuntimeError("Projections changed on a same-model layer change")
+                self.sessions["fly"].cache = self.sessions["fly"].cached_ids = None
+                self.recording.append("layers_changed", old=list(old_layers),
+                                      new=[candidate.capture_layer, candidate.steer_layer],
+                                      projection_fingerprint=fingerprint)
             if leak_changed:
                 # The live state is kept; only the update equation changes from the next update on.
                 self.reservoir.set_leak(candidate.leak_rate)
@@ -253,6 +377,10 @@ class ObservatoryEngine:
             return asdict(candidate)
 
     def _render(self, messages: list[dict[str, str]]) -> str:
+        if self.profile.interaction == "raw":
+            # Base models: the history is one raw text, each submission and reply appended as is.
+            # No chat template, role markers or instructions are added.
+            return "".join(message["content"] for message in messages)
         return self.llm.tokenizer.apply_chat_template(messages, tokenize=False,
                                                       add_generation_prompt=True, enable_thinking=False)
 
@@ -273,7 +401,9 @@ class ObservatoryEngine:
         while True:
             messages = template_messages(history[start:]) + [latest]
             text = self._render(messages)
-            ids = self.llm.tokenizer(text, return_tensors="pt")["input_ids"]
+            # Raw continuation must never gain special tokens; chat text already contains its markers.
+            ids = self.llm.tokenizer(text, return_tensors="pt",
+                                     add_special_tokens=self.profile.interaction == "chat")["input_ids"]
             if plan is None:
                 plan = ContextPlan(messages, text, ids, budget, int(ids.shape[1]))
             else:
@@ -735,8 +865,9 @@ class ObservatoryEngine:
     def restore_session(self, path: str | Path) -> dict:
         with self._lock:
             replay = OfflineReplay.load(path)
-            if replay.metadata.get("model_revision") != self.metadata["model_revision"]:
-                raise ValueError("Recording model revision does not match this engine")
+            if replay.metadata.get("model_revision") != self.metadata["model_revision"] or \
+                    replay.metadata.get("model_profile", LEGACY_PROFILE) != self.profile.key:
+                raise ValueError("Recording language model (profile or revision) does not match this engine")
             for key in ("capture_layer", "steer_layer", "features", "seed"):
                 if replay.settings.get(key) != getattr(self.config, key):
                     raise ValueError(f"Recording adapter setting {key} does not match this engine")

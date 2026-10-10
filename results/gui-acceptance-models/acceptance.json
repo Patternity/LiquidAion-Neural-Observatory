@@ -1,0 +1,188 @@
+{
+  "checks": [
+    {
+      "check": "launch: original Qwen3-0.6B profile",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "qwen3-0.6b: layer ranges follow 28 layers",
+      "passed": true,
+      "detail": "capture 0..26, steer 7..27"
+    },
+    {
+      "check": "qwen3-0.6b: model info shown",
+      "passed": true,
+      "detail": "Qwen3-0.6B (Instruct) · instruct · float16 · eager attention | 28 layers · hidden 1024 · rev c1899de289 · cuda"
+    },
+    {
+      "check": "switched to qwen3-0.6b-base",
+      "passed": true,
+      "detail": "Qwen3-0.6B-Base"
+    },
+    {
+      "check": "qwen3-0.6b-base: layer ranges follow 28 layers",
+      "passed": true,
+      "detail": "capture 0..26, steer 7..27"
+    },
+    {
+      "check": "qwen3-0.6b-base: model info shown",
+      "passed": true,
+      "detail": "Qwen3-0.6B-Base · base · bfloat16 · sdpa attention | 28 layers · hidden 1024 · rev da87bfb608 · cuda"
+    },
+    {
+      "check": "qwen3-0.6b-base: raw continuation mode shown",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "layer change applied via spin boxes",
+      "passed": true,
+      "detail": "Applied: 10 → 20"
+    },
+    {
+      "check": "qwen3-0.6b-base: hooks fired exactly on the selected layers (10, 20)",
+      "passed": true,
+      "detail": "[(10, 20)]"
+    },
+    {
+      "check": "qwen3-0.6b-base: run metadata records model, layers and projections",
+      "passed": true,
+      "detail": "qwen3-0.6b-base (10, 20) 44cd2e997893"
+    },
+    {
+      "check": "switched to qwen3-1.7b-base",
+      "passed": true,
+      "detail": "Qwen3-1.7B-Base"
+    },
+    {
+      "check": "qwen3-1.7b-base: layer ranges follow 28 layers",
+      "passed": true,
+      "detail": "capture 0..26, steer 7..27"
+    },
+    {
+      "check": "qwen3-1.7b-base: model info shown",
+      "passed": true,
+      "detail": "Qwen3-1.7B-Base · base · bfloat16 · sdpa attention | 28 layers · hidden 2048 · rev ea980cb0a6 · cuda"
+    },
+    {
+      "check": "qwen3-1.7b-base: raw continuation mode shown",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "switched to qwen3-4b-base",
+      "passed": true,
+      "detail": "Qwen3-4B-Base"
+    },
+    {
+      "check": "qwen3-4b-base: layer ranges follow 36 layers",
+      "passed": true,
+      "detail": "capture 0..34, steer 9..35"
+    },
+    {
+      "check": "qwen3-4b-base: model info shown",
+      "passed": true,
+      "detail": "Qwen3-4B-Base · base · NF4 (bitsandbytes, compute bfloat16) · sdpa attention | 36 layers · hidden 2560 · rev 906bfd4b4d · cuda"
+    },
+    {
+      "check": "4B runs NF4 entirely on GPU",
+      "passed": true,
+      "detail": "Qwen3-4B-Base · base · NF4 (bitsandbytes, compute bfloat16) · sdpa attention | 36 layers · hidden 2560 · rev 906bfd4b4d · cuda"
+    },
+    {
+      "check": "qwen3-4b-base: raw continuation mode shown",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "qwen3-4b-base: hooks fired exactly on the selected layers (8, 18)",
+      "passed": true,
+      "detail": "[(8, 18)]"
+    },
+    {
+      "check": "qwen3-4b-base: run metadata records model, layers and projections",
+      "passed": true,
+      "detail": "qwen3-4b-base (8, 18) d049749d5575"
+    },
+    {
+      "check": "switched to qwen3-0.6b",
+      "passed": true,
+      "detail": "Qwen3-0.6B (Instruct)"
+    },
+    {
+      "check": "qwen3-0.6b: layer ranges follow 28 layers",
+      "passed": true,
+      "detail": "capture 0..26, steer 7..27"
+    },
+    {
+      "check": "qwen3-0.6b: model info shown",
+      "passed": true,
+      "detail": "Qwen3-0.6B (Instruct) · instruct · float16 · eager attention | 28 layers · hidden 1024 · rev c1899de289 · cuda"
+    },
+    {
+      "check": "back on Qwen3-0.6B: chat reply",
+      "passed": true,
+      "detail": "Привет! Я — это модель, которая помогает в разработке и прод"
+    }
+  ],
+  "errors": [],
+  "memory": [
+    {
+      "profile": "qwen3-0.6b",
+      "allocated_after_load": 1192114688,
+      "dtype": "float16",
+      "quantization": null,
+      "load_seconds": 1.0230209580004157
+    },
+    {
+      "profile": "qwen3-0.6b-base",
+      "allocated_after_load": 1192114688,
+      "dtype": "bfloat16",
+      "quantization": null,
+      "load_seconds": 0.3300776139985828
+    },
+    {
+      "profile": "qwen3-1.7b-base",
+      "allocated_after_load": 3450208768,
+      "dtype": "bfloat16",
+      "quantization": null,
+      "load_seconds": 13.197745235000184
+    },
+    {
+      "profile": "qwen3-4b-base",
+      "allocated_after_load": 2847751680,
+      "dtype": "bfloat16",
+      "quantization": "nf4",
+      "load_seconds": 5.940247853999608
+    },
+    {
+      "profile": "qwen3-0.6b",
+      "allocated_after_load": 1200634368,
+      "dtype": "float16",
+      "quantization": null,
+      "load_seconds": 0.5566871429982712
+    }
+  ],
+  "runs": [
+    {
+      "profile": "qwen3-0.6b-base",
+      "layers": [
+        10,
+        20
+      ],
+      "tokens_per_second": 34.59824953623562,
+      "peak_gpu_allocated_bytes": 1241089024
+    },
+    {
+      "profile": "qwen3-4b-base",
+      "layers": [
+        8,
+        18
+      ],
+      "tokens_per_second": 15.484151424680336,
+      "peak_gpu_allocated_bytes": 2905245184
+    }
+  ],
+  "passed": true
+}
