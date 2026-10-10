@@ -18,15 +18,20 @@ from typing import Any, Callable
 import numpy as np
 import torch
 
-from .connectome import load_graph, sha256
+from types import SimpleNamespace
+
+from .builtin_plugins import DEFAULT_COMPONENTS, coupling_semantics
+from .connectome import sha256
+from .connectomes import Connectome, load_connectome
 from .debuglog import InferenceDebugLog, digest
 from .environment import inspect_environment
 from .bypass import (LEGACY_SINGLE, SYNCHRONIZATION, active_bypasses, coupling_mode, invalid_bypasses,
                      normalize_bypasses)
-from .llm import Coupling, LocalLLM, SynchronousCoupling, compare_logits, stop_token_ids
+from .coupling import Coupling, MeasuredCoupling, SynchronousCoupling  # noqa: F401 (re-export)
+from .llm import LocalLLM, compare_logits, stop_token_ids
 from .models import LEGACY_PROFILE, ModelProfile, coupling_order, get_profile
 from .recording import OfflineReplay, SessionRecording
-from .reservoir import Reservoir, random_control
+from .plugin_api import API_VERSION, PluginError, PluginRegistry, default_registry
 from .telemetry import Telemetry
 
 # Upper bound offered for max_new_tokens; the effective bound is the context budget.
@@ -62,8 +67,14 @@ class ObservatoryConfig:
     # Neural Bypass rows [capture, steer, enabled] (see bypass.py). None means the single pair
     # capture_layer -> steer_layer; otherwise capture_layer/steer_layer mirror the first active pair.
     bypasses: list | None = None
+    # Selected component ids per category (plugin_api.CATEGORIES); missing categories use the
+    # built-in reference components. component_params maps a component id to its parameters.
+    components: dict | None = None
+    component_params: dict | None = None
 
     def __post_init__(self) -> None:
+        self.components = {**DEFAULT_COMPONENTS, **(self.components or {})}
+        self.component_params = {str(k): dict(v) for k, v in (self.component_params or {}).items()}
         if self.bypasses is None:
             self.bypasses = [[self.capture_layer, self.steer_layer, True]]
         else:
@@ -91,7 +102,11 @@ class ObservatoryConfig:
             raise ValueError("Strength and feedback must lie in [0, 1]")
         if not np.isfinite(self.leak_rate) or not 0 < self.leak_rate <= 1:
             raise ValueError("Leak rate must lie in (0, 1]")
-        get_profile(self.model_profile)
+        unknown = set(self.components) - set(DEFAULT_COMPONENTS)
+        if unknown:
+            raise ValueError(f"Unknown component categories {sorted(unknown)}; selectable: {sorted(DEFAULT_COMPONENTS)}")
+        if self.components["model_adapter"] == DEFAULT_COMPONENTS["model_adapter"]:
+            get_profile(self.model_profile)
 
 
 @dataclass
@@ -123,28 +138,10 @@ def template_messages(messages: list[dict[str, Any]]) -> list[dict[str, str]]:
     return [{"role": m["role"], "content": m["content"]} for m in messages]
 
 
-class MeasuredCoupling(Coupling):
-    """Expose actual input and feedback without changing the established pathway."""
-    def capture(self, module: Any, args: tuple, output: Any) -> None:
-        super().capture(module, args, output)
-        self.current["input_norm"] = float(np.linalg.norm(self.current["features"]))
-        mapped = self.reservoir.dynamics.input_strength * (self.reservoir.input @ np.asarray(self.current["features"]))
-        self.current["mapped_input_norm"] = float(np.linalg.norm(mapped))
-
-    def steer(self, module: Any, args: tuple, output: Any) -> Any:
-        original = output[0] if isinstance(output, tuple) else output
-        result = super().steer(module, args, output)
-        modified = result[0] if isinstance(result, tuple) else result
-        self.current["steering_vector_norm"] = float((modified[:, -1].float() - original[:, -1].float()).norm())
-        self.current["feedback_enabled"] = bool(self.feedback)
-        self.current["feedback_strength"] = self.feedback
-        self.current["feedback_state_rms"] = float(np.sqrt(np.mean(self.reservoir.state ** 2)))
-        return result
-
-
 class ObservatoryEngine:
     def __init__(self, model_path: str | Path, graph_dir: str | Path,
-                 device: str = "cpu", config: ObservatoryConfig | dict | None = None):
+                 device: str = "cpu", config: ObservatoryConfig | dict | None = None,
+                 registry: PluginRegistry | None = None):
         if isinstance(config, dict):
             config = ObservatoryConfig(**config)
         self.config = config or ObservatoryConfig()
@@ -157,11 +154,17 @@ class ObservatoryEngine:
         if resolved.type == "cuda" and not torch.cuda.is_available():
             raise RuntimeError("CUDA was explicitly requested but is unavailable; no CPU fallback")
         self._lock = RLock()
+        # Components are resolved once here (and at configure/switch boundaries), never per token.
+        self.registry = registry if registry is not None else default_registry()
+        self.specs, self.params = self._resolve_components(self.config)
         self.graph_dir = Path(graph_dir)
-        self.graph, self.node_ids = load_graph(self.graph_dir)
-        self.reservoir = self._new_reservoir(self.graph)
+        self._control_cache: tuple[str, Connectome] | None = None
+        self._set_connectome(self._load_connectome(self.config.components["connectome"]))
+        self.model_adapter = self.specs["model_adapter"].factory(
+            SimpleNamespace(params=self.params["model_adapter"]))
+        self.reservoir = self._new_reservoir()
         self.device = resolved
-        self.profile: ModelProfile = get_profile(self.config.model_profile)
+        self.profile: ModelProfile = self.model_adapter.get_profile(self.config.model_profile)
         # An explicit local directory overrides the download source (legacy --model-path).
         self.model_path = str(model_path) if model_path is not None and Path(str(model_path)).is_dir() else None
         if self.profile.key == LEGACY_PROFILE and self.config.revision and self.config.revision != self.profile.revision:
@@ -186,28 +189,94 @@ class ObservatoryEngine:
                                    delta_relative_rms=0.0, token_index=None)
         self._publish("initialized")
 
-    def _coupling(self, reservoir: Reservoir, mode: str = "fly", strength: float | None = None,
+    def _coupling(self, reservoir: Any, mode: str = "fly", strength: float | None = None,
                   feedback: float | None = None) -> MeasuredCoupling:
         if strength is None:
             strength = self.config.strength if self.config.steering_enabled else 0.0
         if feedback is None:
             feedback = self.config.feedback if self.config.feedback_enabled else 0.0
-        active = self.config.active_bypasses
-        if len(active) > 1:
-            # Several unique pairs: one shared reservoir, one aggregate update per token.
-            return SynchronousCoupling(reservoir, self.llm.model.config.hidden_size, active,
-                                       strength, feedback, mode=mode, seed=self.config.seed)
-        # The legacy single bypass, unchanged.
-        capture, steer = active[0]
-        return MeasuredCoupling(reservoir, self.llm.model.config.hidden_size, capture, steer,
-                                strength, feedback, mode=mode, seed=self.config.seed)
+        hidden_size = self.model_adapter.hidden_size(self.llm.model)
+        interface = self.specs["neural_interface"].factory(SimpleNamespace(
+            hidden_size=hidden_size, reservoir_neurons=len(reservoir.state), features=self.config.features,
+            seed=self.config.seed, params=self.params["neural_interface"], model=self.profile.as_dict(),
+            num_layers=self.model_layers(), device=str(self.device)))
+        for name in ("hidden_size", "reservoir_neurons", "features"):
+            if not hasattr(interface, name):
+                raise PluginError(f"{self.config.components['neural_interface']}: the interface must declare {name}")
+        # The coupling policy decides when the interface runs; the kernel installs its hook plan.
+        return self.specs["coupling"].factory(SimpleNamespace(
+            reservoir=reservoir, interface=interface, bypasses=self.config.active_bypasses, strength=strength,
+            feedback=feedback, mode=mode, hidden_size=hidden_size, seed=self.config.seed,
+            params=self.params["coupling"]))
+
+    # ------------------------------------------------------------ components
+
+    def _resolve_components(self, config: ObservatoryConfig) -> tuple[dict, dict]:
+        """Look up every selected component and validate its parameters; nothing is substituted."""
+        specs, params = {}, {}
+        for category, component_id in config.components.items():
+            spec = self.registry.get(component_id, category)
+            specs[category] = spec
+            params[category] = spec.resolve_params(config.component_params.get(component_id))
+        return specs, params
+
+    def _load_connectome(self, component_id: str, params: dict | None = None) -> Connectome:
+        try:
+            return load_connectome(self.registry, component_id, self.config.component_params, self.graph_dir,
+                                   self.config.seed, params)
+        except TypeError as exc:
+            raise PluginError(str(exc)) from None
+
+    def _set_connectome(self, connectome: Connectome) -> None:
+        self.connectome = connectome
+        self.graph, self.node_ids = connectome.weights, list(connectome.node_ids)
+        if connectome.source_dir is not None:
+            self.graph_dir = Path(connectome.source_dir)
+        self._control_cache = None
+
+    def control_connectome(self) -> Connectome:
+        """The random-topology control of the selected connectome (seed = config.seed), cached."""
+        if self._control_cache is None or self._control_cache[0] != self.connectome.fingerprint:
+            spec = self.registry.get("builtin.connectome.random_control", "connectome")
+            context = SimpleNamespace(params={"base": self.connectome.component_id, "seed": self.config.seed},
+                                      graph_dir=self.graph_dir, seed=self.config.seed,
+                                      load=lambda *_: self.connectome)
+            self._control_cache = (self.connectome.fingerprint, spec.factory(context))
+        return self._control_cache[1]
+
+    def cue_group(self, target: str, require_input: bool = True) -> tuple[list[int], list[str]]:
+        """Neuron group for the built-in cue modulation on the selected connectome."""
+        if require_input and target != "off" and "extra_input" not in getattr(self.reservoir, "capabilities", ()):
+            raise PluginError(f"{self.config.components['reservoir']} does not support extra per-neuron input; "
+                              "the neuron cue cannot be applied")
+        spec = self.registry.get("builtin.modulation.neuron_cue", "modulation")
+        return spec.factory(SimpleNamespace(connectome=self.connectome, target=target, seed=self.config.seed))
+
+    def create_reservoir(self, connectome: Connectome | None = None, leak: float | None = None) -> Any:
+        return self._new_reservoir(connectome, leak)
+
+    def components_info(self) -> dict[str, Any]:
+        info = {}
+        for category, spec in self.specs.items():
+            info[category] = {"id": spec.component_id, "version": spec.version, "plugin": spec.plugin_id,
+                              "api_version": spec.api_version, "params": self.params[category]}
+        info["coupling"]["semantics"] = coupling_semantics(self.specs["coupling"].component_id,
+                                                           len(self.config.active_bypasses)) \
+            if self.specs["coupling"].plugin_id == "builtin" else self.specs["coupling"].metadata.get("semantics")
+        info["connectome"]["fingerprint"] = self.connectome.fingerprint
+        info["connectome"]["neurons"] = self.connectome.neurons
+        coupling = getattr(self, "coupling", None)
+        if coupling is not None:
+            interface = coupling.interface
+            info["neural_interface"]["fingerprint"] = interface.fingerprint
+            info["neural_interface"]["recurrent"] = bool(getattr(interface, "recurrent", False))
+        return info
 
     # ------------------------------------------------------------ language model
 
     def _load_llm(self, profile: ModelProfile) -> Any:
         source = self.model_path if self.model_path and profile.key == self.profile.key else profile.model_id
-        llm = LocalLLM(str(source), device=str(self.device), revision=profile.revision,
-                       threads=self.config.threads, profile=profile)
+        llm = self.model_adapter.load(profile, str(source), str(self.device), self.config.threads, loader=LocalLLM)
         if source == self.model_path:
             revision_path = Path(source) / "revision.json"
             recorded = json.loads(revision_path.read_text()).get("revision") if revision_path.exists() else None
@@ -216,7 +285,7 @@ class ObservatoryEngine:
         return llm
 
     def model_layers(self) -> int:
-        return len(self.llm.model.model.layers)
+        return len(self.model_adapter.layers(self.llm.model))
 
     def _check_layers(self, config: ObservatoryConfig) -> None:
         layers = self.model_layers()
@@ -249,7 +318,10 @@ class ObservatoryEngine:
     def coupling_info(self) -> dict[str, Any]:
         """The Neural Bypass configuration as it executes (recorded with every session and run)."""
         active = self.config.active_bypasses
-        mode = coupling_mode(active)
+        coupling = getattr(self, "coupling", None)
+        mode = getattr(coupling, "execution_mode", None) or coupling_mode(active)
+        if mode not in SYNCHRONIZATION:
+            mode = coupling_mode(active)
         feedback = self.config.feedback_enabled and self.config.feedback > 0
         return {"bypasses": [list(row) for row in self.config.bypasses],
                 "active_bypasses": [list(pair) for pair in active], "coupling_mode": mode,
@@ -258,13 +330,17 @@ class ObservatoryEngine:
                 "capture_layers": sorted({capture for capture, _ in active}),
                 "steer_layers": sorted({steer for _, steer in active}),
                 "reservoir_updates_per_token": (2 if feedback else 1) if mode == LEGACY_SINGLE else 1,
-                "synchronization": SYNCHRONIZATION[mode]}
+                "synchronization": SYNCHRONIZATION[mode], "plugin_api_version": API_VERSION,
+                "components": self.components_info()}
 
     def _build_metadata(self) -> dict[str, Any]:
         return {"model": self.model_path or self.profile.model_id, "model_revision": self.profile.revision,
                 "model_profile": self.profile.key, "language_model": self.model_info(),
-                "connectome_hash": sha256(self.graph_dir / "edges.csv"),
-                "node_hash": sha256(self.graph_dir / "nodes.csv"),
+                "connectome_hash": sha256(self.graph_dir / "edges.csv")
+                if self.connectome.source_dir is not None else self.connectome.fingerprint,
+                "node_hash": sha256(self.graph_dir / "nodes.csv")
+                if self.connectome.source_dir is not None else self.connectome.fingerprint,
+                "connectome": self.connectome.describe() | {"provenance": None},
                 "reservoir_fingerprint": self.reservoir.fingerprint,
                 "nodes": len(self.node_ids), "edges": int(self.graph.nnz),
                 "hardware": {**inspect_environment(), "device": str(self.device)},
@@ -278,7 +354,7 @@ class ObservatoryEngine:
         depend on its hidden size, so neither is carried over. The connectome is unchanged.
         """
         with self._lock:
-            target = get_profile(key)
+            target = self.model_adapter.get_profile(key)
             previous = self.profile
             old_info = self.model_info()
             self.coupling.detach()
@@ -319,7 +395,8 @@ class ObservatoryEngine:
             self.model_context_limit = getattr(self.llm.model.config, "max_position_embeddings", None)
             if self.config.max_context_tokens > (self.model_context_limit or self.config.max_context_tokens):
                 self.config.max_context_tokens = self.model_context_limit
-            self.reservoir = self._new_reservoir(self.graph)
+                self._settings_cache = None
+            self.reservoir = self._new_reservoir()
             self.coupling = self._coupling(self.reservoir)
             self.sessions = {name: ChatSession([]) for name in ("clean", "fly")}
             self.session_id = uuid.uuid4().hex
@@ -333,10 +410,19 @@ class ObservatoryEngine:
             self._publish("model_switched", status="ready", branch=None, generated_tokens=0)
             return self.model_info()
 
-    def _new_reservoir(self, graph: Any) -> Reservoir:
-        """A zero-state reservoir with the engine's projections and current leak rate."""
-        reservoir = Reservoir(graph, features=self.config.features, seed=self.config.seed)
-        reservoir.set_leak(self.config.leak_rate)
+    def _new_reservoir(self, connectome: Connectome | None = None, leak: float | None = None) -> Any:
+        """A zero-state reservoir from the selected reservoir provider (current leak rate by default)."""
+        connectome = connectome or self.connectome
+        reservoir = self.specs["reservoir"].factory(SimpleNamespace(
+            connectome=connectome, features=self.config.features, seed=self.config.seed,
+            leak=self.config.leak_rate if leak is None else leak, params=self.params["reservoir"]))
+        state = getattr(reservoir, "state", None)
+        if state is None or len(state) != connectome.neurons:
+            raise PluginError(f"{self.config.components['reservoir']} produced a state of "
+                              f"{None if state is None else len(state)} neurons for a {connectome.neurons}-neuron connectome")
+        for name in ("advance", "reset", "set_leak", "time", "dynamics", "fingerprint"):
+            if not hasattr(reservoir, name):
+                raise PluginError(f"{self.config.components['reservoir']}: the reservoir must provide {name!r}")
         return reservoir
 
     def _check_model_context(self, config: ObservatoryConfig) -> None:
@@ -354,7 +440,21 @@ class ObservatoryEngine:
             self.debug_log = None
 
     def _hook_count(self) -> int:
-        return sum(len(layer._forward_hooks) for layer in self.llm.model.model.layers)
+        return sum(len(layer._forward_hooks) for layer in self.model_adapter.layers(self.llm.model))
+
+    def _settings_snapshot(self) -> dict:
+        """asdict(config), computed once per configuration object; telemetry reads it every token.
+
+        Configurations are replaced, not mutated, on every change (the one in-place mutation
+        clears this cache). Consumers treat the returned dict as read-only."""
+        cached = getattr(self, "_settings_cache", None)
+        if cached is None or cached[0] is not self.config:
+            # Component selections are recorded in the metadata, the saved settings and every
+            # components_changed event; they are not repeated in each per-token snapshot.
+            settings = {k: v for k, v in asdict(self.config).items() if k not in {"components", "component_params"}}
+            cached = (self.config, settings)
+            self._settings_cache = cached
+        return cached[1]
 
     def _publish(self, event: str, callback: Callable | None = None, **values: Any) -> dict:
         actual_reservoir = values.pop("actual_reservoir", self.reservoir)
@@ -368,7 +468,7 @@ class ObservatoryEngine:
         snapshot = self.telemetry.update(state=state.tolist(), activity=np.abs(state).tolist(),
                                          state_rms=float(np.sqrt(np.mean(state ** 2))),
                                          simulation_time=actual_reservoir.time,
-                                         settings=asdict(self.config),
+                                         settings=self._settings_snapshot(),
                                          timestamp_utc=datetime.now(timezone.utc).isoformat(),
                                          simulation_step=int(round(actual_reservoir.time / actual_reservoir.dynamics.dt)),
                                          feedback_event_count=self._feedback_events, **memory, **values)
@@ -380,19 +480,43 @@ class ObservatoryEngine:
     def configure(self, **settings: Any) -> dict:
         with self._lock:
             mutable = {"strength", "feedback", "steering_enabled", "feedback_enabled", "max_new_tokens",
-                       "max_context_tokens", "leak_rate", "capture_layer", "steer_layer", "bypasses"}
+                       "max_context_tokens", "leak_rate", "capture_layer", "steer_layer", "bypasses",
+                       "components", "component_params"}
             if set(settings) - mutable:
-                raise ValueError("Only runtime steering, feedback, leak, layer and context settings may be configured")
+                raise ValueError("Only runtime steering, feedback, leak, layer, context and component settings "
+                                 "may be configured")
             settings = dict(settings)
             if {"capture_layer", "steer_layer"} & set(settings):
                 if "bypasses" in settings:
                     raise ValueError("Set either bypasses or capture_layer/steer_layer, not both")
                 # The legacy single-pair setting replaces the bypass list with that one pair.
                 settings["bypasses"] = None
+            if "components" in settings:
+                settings["components"] = {**self.config.components, **dict(settings["components"] or {})}
+            if "component_params" in settings:
+                settings["component_params"] = {**self.config.component_params, **dict(settings["component_params"] or {})}
             candidate = ObservatoryConfig(**{**asdict(self.config), **settings})
             candidate.validate()
             self._check_model_context(candidate)
             self._check_layers(candidate)
+            specs, params = self._resolve_components(candidate)
+            changed = sorted(category for category in specs if specs[category].component_id !=
+                             self.specs[category].component_id or params[category] != self.params[category])
+            if "model_adapter" in changed:
+                raise ValueError("The model adapter changes only with switch_model (it reloads the model)")
+            backup = (self.config, self.specs, self.params, self.connectome, self.graph, self.node_ids,
+                      self.graph_dir, self.reservoir, self.coupling, self._control_cache)
+            try:
+                return self._apply_configuration(candidate, settings, specs, params, changed)
+            except BaseException:
+                # All or nothing: a failing component leaves the previous configuration running.
+                (self.config, self.specs, self.params, self.connectome, self.graph, self.node_ids,
+                 self.graph_dir, self.reservoir, self.coupling, self._control_cache) = backup
+                raise
+
+    def _apply_configuration(self, candidate: ObservatoryConfig, settings: dict, specs: dict, params: dict,
+                             changed: list[str]) -> dict:
+        with self._lock:
             old_layers = (self.config.capture_layer, self.config.steer_layer)
             old_active = self.config.active_bypasses
             old_rows = self.config.bypasses
@@ -401,12 +525,26 @@ class ObservatoryEngine:
             old_leak = self.reservoir.leak
             leak_changed = candidate.leak_rate != old_leak
             self.config = candidate
+            if changed:
+                # Applied only between operations (the engine lock excludes a running forward pass).
+                self.specs, self.params = specs, params
+                if "connectome" in changed:
+                    self._set_connectome(self._load_connectome(candidate.components["connectome"]))
+                if {"connectome", "reservoir"} & set(changed):
+                    # A different topology or dynamics never inherits the old state.
+                    self.reservoir = self._new_reservoir()
+                self.coupling = self._coupling(self.reservoir)
+                self.sessions["fly"].cache = self.sessions["fly"].cached_ids = None
+                self.metadata = self._build_metadata()
+                self.recording.append("components_changed", changed=changed, components=self.components_info(),
+                                      reservoir="reset to zero" if {"connectome", "reservoir"} & set(changed)
+                                      else "kept")
             if layers_changed:
                 # Applied between operations (the engine lock excludes running generation). The
                 # projections do not depend on the layers; the reservoir state is kept.
                 fingerprint = self.coupling.projection_fingerprint
                 self.coupling = self._coupling(self.reservoir)
-                if self.coupling.projection_fingerprint != fingerprint:
+                if "neural_interface" not in changed and self.coupling.projection_fingerprint != fingerprint:
                     raise RuntimeError("Projections changed on a same-model layer change")
                 self.sessions["fly"].cache = self.sessions["fly"].cached_ids = None
                 info = self.coupling_info()
@@ -441,12 +579,7 @@ class ObservatoryEngine:
             return asdict(candidate)
 
     def _render(self, messages: list[dict[str, str]]) -> str:
-        if self.profile.interaction == "raw":
-            # Base models: the history is one raw text, each submission and reply appended as is.
-            # No chat template, role markers or instructions are added.
-            return "".join(message["content"] for message in messages)
-        return self.llm.tokenizer.apply_chat_template(messages, tokenize=False,
-                                                      add_generation_prompt=True, enable_thinking=False)
+        return self.model_adapter.render(messages, self.profile, self.llm.tokenizer)
 
     def _build_context(self, session: ChatSession, prompt: str, reserve: int) -> ContextPlan:
         """Render the latest user turn after as much complete history as the budget allows.
@@ -497,7 +630,7 @@ class ObservatoryEngine:
     def _forward(self, ids: torch.Tensor, cache: Any, coupling: Coupling | None,
                  hooks: dict[str, int] | None = None):
         if coupling:
-            coupling.attach(self.llm.model)
+            coupling.attach(self.model_adapter.layers(self.llm.model))
             if hooks is not None:
                 hooks["attached"] += 1
         elif self._hook_count():
@@ -759,6 +892,7 @@ class ObservatoryEngine:
         with self._lock:
             self.reservoir.reset()
             self.coupling.clear_trace()
+            self.coupling.reset_interface()
             # Old Fly cache carries interventions from its former reservoir state.
             self.sessions["fly"].cache = self.sessions["fly"].cached_ids = None
             return self._publish("state_reset", status="ready", input_norm=0.0, mapped_input_norm=0.0,
@@ -774,6 +908,7 @@ class ObservatoryEngine:
         with self._lock:
             self.reservoir.reset()
             self.coupling.clear_trace()
+            self.coupling.reset_interface()
             self.sessions = {name: ChatSession([]) for name in ("clean", "fly")}
             self.recording = SessionRecording(self.metadata)
             self._feedback_events = 0
@@ -807,8 +942,7 @@ class ObservatoryEngine:
             initial = self.reservoir.state.copy()
             initial_time = self.reservoir.time
             def condition(random: bool = False):
-                graph = random_control(self.graph, self.config.seed) if random else self.graph
-                reservoir = self._new_reservoir(graph)
+                reservoir = self._new_reservoir(self.control_connectome() if random else self.connectome)
                 reservoir.state = initial.copy()
                 reservoir.time = initial_time
                 return self._coupling(reservoir, "random" if random else "fly")
@@ -866,8 +1000,8 @@ class ObservatoryEngine:
                         break
                     coupling = None
                     if label != "clean":
-                        graph = random_control(self.graph, self.config.seed) if label == "random" else self.graph
-                        reservoir = self._new_reservoir(graph)
+                        reservoir = self._new_reservoir(self.control_connectome() if label == "random"
+                                                        else self.connectome)
                         reservoir.state = initial.copy()
                         reservoir.time = initial_time
                         coupling = self._coupling(reservoir, label)
@@ -911,7 +1045,7 @@ class ObservatoryEngine:
                 raise ValueError("Scientific token limit is outside the context budget")
             # Drive a temporary reservoir with a first prompt, then compare retained and
             # reset states on an identical second-prompt token path. Live chats stay intact.
-            temp = self._new_reservoir(self.graph)
+            temp = self._new_reservoir()
             coupling = self._coupling(temp)
             cancel = cancel_event if cancel_event is not None else Event()
             self._generate("fly_warmup", prompt_a, max_tokens, cancel, None, on_telemetry,
@@ -966,11 +1100,16 @@ class ObservatoryEngine:
                                                             replay.settings["steer_layer"], True]]
             if active_bypasses(recorded) != self.config.active_bypasses:
                 raise ValueError("Recording Neural Bypass configuration does not match this engine")
+            # Recordings made before the plugin architecture used the built-in reference components.
+            if ObservatoryConfig(components=replay.settings.get("components"),
+                                 component_params=replay.settings.get("component_params")).components != \
+                    self.config.components or (replay.settings.get("component_params") or {}) != \
+                    self.config.component_params:
+                raise ValueError("Recording components (plugins) do not match this engine's selection")
             state = np.asarray(replay.state["values"], dtype=float)
             # Recordings made before leak control used the 0.2 baseline.
             leak = float(replay.settings.get("leak_rate", 0.2))
-            expected = Reservoir(self.graph, features=self.config.features, seed=self.config.seed)
-            expected.set_leak(leak)
+            expected = self._new_reservoir(leak=leak)
             if replay.state["fingerprint"] != expected.fingerprint or state.shape != self.reservoir.state.shape:
                 raise ValueError("Recording reservoir (graph, projections or dynamics) does not match this engine")
             if not np.isfinite(state).all() or np.max(np.abs(state)) > 1 + 1e-9:

@@ -185,6 +185,9 @@ def test_synchronous_one_update_per_token_from_the_pre_token_state(model, bypass
     c.reservoir.advance = lambda u, **k: (advances.append((c.reservoir.state.copy(), np.array(u))), advance(u, **k))[1]
     c._intervene = lambda h, state, layer=None: (steering_states.append(state.copy()), intervene(h, state, layer))[1]
     c.features = lambda h: (features.append(project(h)), features[-1])[1]
+    # Feedback goes through the interface's feedback() (the original interface: the same projection).
+    project_feedback = c.feedback_features
+    c.feedback_features = lambda h: (features.append(project_feedback(h)), features[-1])[1]
     run_tokens(model, c, tokens=3)
     assert len(advances) == 3, "Exactly one reservoir update per token, whatever the bypass count"
     assert len(c.records) == 3 and all(r["reservoir_updates"] == 1 for r in c.records)

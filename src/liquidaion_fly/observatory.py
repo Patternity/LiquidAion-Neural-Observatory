@@ -124,6 +124,9 @@ def main() -> None:
                              "cache/hook/trim events and digests; 'full' also stores the rendered prompt, "
                              "token ids and generated text (the conversation itself)")
     parser.add_argument("--debug-dir", type=Path, default=ROOT / "results/debug")
+    parser.add_argument("--plugin", action="append", default=[], metavar="PLUGIN_ID",
+                        help="Enable a discovered plugin for this launch (repeatable). Plugins are trusted Python "
+                             "code; see docs/PLUGINS.md. Also: LIQUIDAION_PLUGINS, Plugins menu.")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
     config = load_configuration(args.config, args.cpu)
@@ -153,7 +156,7 @@ def main() -> None:
             logging.getLogger(__name__).info("Inference debug log (%s): %s", args.debug_log, path)
         from .observatory_gui import run_gui
         run_gui(engine_config(config), model_path, args.graph, args.anatomy, replay_path=args.replay,
-                device=config["device"], debug_log=debug_log)
+                device=config["device"], debug_log=debug_log, plugins=args.plugin)
     except (RuntimeError, FileNotFoundError, ValueError) as exc:
         parser.exit(2, f"Observatory startup failed: {exc}\n")
 

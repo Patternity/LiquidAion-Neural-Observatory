@@ -41,7 +41,7 @@ import numpy as np
 from .debuglog import digest
 from .observatory_engine import ChatSession, ObservatoryConfig, ObservatoryEngine
 from .recording import SessionRecording
-from .reservoir import Reservoir, random_control
+from .reservoir import Reservoir
 
 LOG = logging.getLogger("liquidaion.attractor")
 ROOT = Path(__file__).resolve().parents[2]
@@ -176,11 +176,12 @@ class Diagnostic:
         self.limit = limit
         self.output = output
         self.token_rows: list[dict[str, Any]] = []
-        self.random_graph = random_control(engine.graph, engine.config.seed)
+        self.random_graph = engine.control_connectome()
 
     def reservoir(self, condition: Condition, state: np.ndarray | None = None) -> Reservoir:
-        graph = self.random_graph if condition.mode == "random" else self.engine.graph
-        reservoir = Reservoir(graph, features=self.engine.config.features, seed=self.engine.config.seed)
+        graph = self.random_graph if condition.mode == "random" else self.engine.connectome
+        # This diagnostic has always used the baseline leak 0.2 (Dynamics defaults), not config.leak_rate.
+        reservoir = self.engine.create_reservoir(graph, leak=0.2)
         if state is not None:
             reservoir.state = state.copy()
         return reservoir

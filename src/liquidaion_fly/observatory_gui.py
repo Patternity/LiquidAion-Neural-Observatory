@@ -15,15 +15,19 @@ import numpy as np
 import pandas as pd
 from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QObject, QSettings, QThread, QTimer, Qt, Signal, Slot
 from PySide6.QtGui import QColor, QPainter, QPen
-from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog,
-    QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QMainWindow,
-    QMessageBox, QPushButton, QSlider, QSpinBox, QSplitter, QTextBrowser, QTextEdit,
-    QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
+    QFileDialog, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QMainWindow,
+    QMessageBox, QPushButton, QSlider, QSpinBox, QSplitter, QTableWidget, QTableWidgetItem, QTextBrowser,
+    QTextEdit, QVBoxLayout, QWidget)
 
 from .brain_view import BrainView
 from .bypass import active_bypasses, normalize_bypasses
+from .builtin_plugins import DEFAULT_COMPONENTS
+from .connectomes import load_connectome
 from .model_gui import ModelPanel
 from .models import PROFILES, get_profile
+from .plugin_api import PluginError, build_registry, discover, plugin_roots
+from .ui_plugins import LAYOUT_VERSION, EventHub, PanelDock, ParameterForm, Workspace
 
 # GUI bounds for generation settings; the engine validates the actual context budget.
 NEW_TOKENS_MAX = 4096
@@ -50,7 +54,24 @@ def apply_preferences(config, preferences):
         profile = str(preferences.value("model/profile", config.model_profile))
         if profile in PROFILES:
             config = replace(config, model_profile=profile, bypasses=saved_bypasses(preferences, profile))
+    if hasattr(config, "components"):
+        try:
+            selection = json.loads(str(preferences.value("components/selection", "") or "{}"))
+            params = json.loads(str(preferences.value("components/params", "") or "{}"))
+        except (TypeError, ValueError):
+            selection, params = {}, {}
+        if selection or params:
+            # Applied as saved: an unavailable plugin component is reported, never replaced.
+            config = replace(config, components={**config.components, **selection},
+                             component_params={**config.component_params, **params})
     return config
+
+
+def saved_enabled_plugins(preferences):
+    value = preferences.value("plugins/enabled", [])
+    if isinstance(value, str):
+        value = [value] if value else []
+    return [str(v) for v in (value or [])]
 
 
 def saved_layers(preferences, profile_key):
@@ -146,9 +167,10 @@ class EngineWorker(QObject):
     continuous_progress = Signal(dict)
     plugin_log = Signal(str)
 
-    def __init__(self, config, model_path, graph_dir, device="cpu", replay_path=None, debug_log=None):
+    def __init__(self, config, model_path, graph_dir, device="cpu", replay_path=None, debug_log=None, registry=None):
         super().__init__()
         self.debug_log = debug_log
+        self.registry = registry
         if isinstance(config, dict):
             from .observatory_engine import ObservatoryConfig
             accepted = {field.name for field in fields(ObservatoryConfig)}
@@ -171,7 +193,8 @@ class EngineWorker(QObject):
                 self._load_replay(self.replay_path)
             else:
                 from .observatory_engine import ObservatoryEngine
-                self.engine = ObservatoryEngine(self.model_path, self.graph_dir, device=self.device, config=self.config)
+                self.engine = ObservatoryEngine(self.model_path, self.graph_dir, device=self.device, config=self.config,
+                                                registry=self.registry)
                 if self.debug_log:
                     self.engine.enable_debug_log(*self.debug_log)
                 self.initialized.emit({"mode": "live", "node_ids": self.engine.node_ids,
@@ -287,6 +310,11 @@ class EngineWorker(QObject):
                 result = self.engine.scientific_compare(payload["prompt"], comparison=payload["comparison"], max_tokens=payload["tokens"], cancel_event=self.cancel_event, on_telemetry=self.publish)
             elif command == "continuous":
                 result = self._continuous(payload)
+            elif command == "experiment":
+                from .plugins import run_experiment
+                result = run_experiment(self.engine, payload["id"], self.cancel_event, self.plugin_log.emit,
+                                        on_telemetry=self.publish, **({"output_root": Path(payload["output_root"])}
+                                                                      if payload.get("output_root") else {}))
             elif command == "plugin":
                 # Trusted local script; owns the engine on this thread until it returns.
                 from .plugins import run_plugin
@@ -447,25 +475,163 @@ class ChatPanel(QGroupBox):
         self.text.verticalScrollBar().setValue(self.text.verticalScrollBar().maximum())
 
 
+class NoAnatomyView(QLabel):
+    """Stands in for the 3D view when the selected connectome is not the registered anatomy."""
+    neuron_selected = Signal(int)
+
+    def __init__(self, message):
+        super().__init__(message)
+        self.setWordWrap(True)
+        self.setAlignment(Qt.AlignCenter)
+        self.setStyleSheet("color:#8c9fbd")
+
+    def update_state(self, values):
+        pass
+
+    def select_neuron(self, index):
+        pass
+
+    def set_connections_visible(self, visible):
+        pass
+
+    def set_anatomy_visible(self, visible):
+        pass
+
+    def set_activity_scale(self, value):
+        pass
+
+    def reset_camera(self):
+        pass
+
+    def focus_neurons(self):
+        pass
+
+    def export_image(self, path):
+        self.grab().save(str(path))
+
+
+class ComponentPanel(QWidget):
+    """Select the neural interface, coupling policy, reservoir and connectome, with parameter editors.
+
+    Interface, coupling and reservoir changes are sent to the engine (applied between operations;
+    a reservoir change starts from a zero state). The connectome is chosen for the next launch,
+    because the anatomy view and neuron tables are built from it at startup."""
+    CATEGORIES = (("neural_interface", "Neural interface", "live"), ("coupling", "Coupling policy", "live"),
+                  ("reservoir", "Reservoir", "live (state reset)"), ("connectome", "Connectome", "next launch"))
+
+    def __init__(self, context):
+        super().__init__()
+        self.context = context
+        self.selection = dict(getattr(context.shell._config, "components", None) or DEFAULT_COMPONENTS)
+        self.params = dict(getattr(context.shell._config, "component_params", None) or {})
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.rows = {}
+        for category, title, timing in self.CATEGORIES:
+            group = QGroupBox(f"{title} · {timing}")
+            box = QVBoxLayout(group)
+            combo = QComboBox()
+            for spec in context.registry.list(category):
+                combo.addItem(f"{spec.name} · {spec.component_id}", spec.component_id)
+            combo.setCurrentIndex(max(0, combo.findData(self.selection.get(category))))
+            description = QLabel("")
+            description.setWordWrap(True)
+            description.setStyleSheet("color:#8c9fbd;font-size:10px")
+            apply_button = QPushButton("Apply")
+            box.addWidget(combo)
+            box.addWidget(description)
+            form_holder = QVBoxLayout()
+            box.addLayout(form_holder)
+            box.addWidget(apply_button)
+            layout.addWidget(group)
+            row = {"combo": combo, "description": description, "holder": form_holder, "form": None,
+                   "apply": apply_button}
+            self.rows[category] = row
+            combo.currentIndexChanged.connect(lambda _, c=category: self._show(c))
+            apply_button.clicked.connect(lambda _, c=category: self.apply(c))
+            self._show(category)
+        self.message = QLabel("")
+        self.message.setWordWrap(True)
+        self.message.setStyleSheet("color:#f5d285;font-size:10px")
+        layout.addWidget(self.message)
+        layout.addStretch(1)
+        context.subscribe("configuration_changed", self._configured, owner=self)
+
+    def _show(self, category):
+        row = self.rows[category]
+        component_id = row["combo"].currentData()
+        if row["form"] is not None:
+            row["form"].deleteLater()
+        if component_id is None:
+            row["form"] = None
+            return
+        spec = self.context.registry.get(component_id)
+        row["description"].setText(f"{spec.description} (plugin {spec.plugin_id}, v{spec.version})")
+        layers = (self.context.model_info() or {}).get("num_hidden_layers")
+        row["form"] = ParameterForm(spec.parameters, self.params.get(component_id), layers)
+        row["holder"].addWidget(row["form"])
+
+    def apply(self, category):
+        row = self.rows[category]
+        component_id = row["combo"].currentData()
+        try:
+            params = row["form"].values()
+        except PluginError as exc:
+            self.message.setText(str(exc))
+            return
+        if category == "connectome":
+            selection = json.loads(str(self.context.shell.preferences.value("components/selection", "") or "{}"))
+            selection["connectome"] = component_id
+            stored = json.loads(str(self.context.shell.preferences.value("components/params", "") or "{}"))
+            stored[component_id] = params
+            self.context.shell.preferences.setValue("components/selection", json.dumps(selection))
+            self.context.shell.preferences.setValue("components/params", json.dumps(stored))
+            self.message.setText(f"Connectome {component_id} will be used at the next launch.")
+            return
+        if self.context.is_busy():
+            self.message.setText("Finish the current operation first; components change only between operations.")
+            return
+        self.context.select_component(category, component_id, params)
+        self.message.setText(f"Requested {component_id}; the engine applies it before the next operation.")
+
+    def _configured(self, name, settings):
+        self.selection = dict(settings.get("components") or self.selection)
+        self.params = dict(settings.get("component_params") or self.params)
+        self.message.setText("Active: " + ", ".join(f"{k.split('_')[0]}={v.split('.')[-1]}"
+                                                     for k, v in self.selection.items() if k != "model_adapter"))
+
+
 class ObservatoryWindow(QMainWindow):
     command = Signal(str, object)
     shutdown_worker = Signal()
 
     def __init__(self, config, model_path, graph_dir, anatomy_dir, device="cpu", replay_path=None,
-                 start_worker=True, brain_factory=BrainView, preferences=None, debug_log=None):
+                 start_worker=True, brain_factory=BrainView, preferences=None, debug_log=None, registry=None,
+                 plugins=()):
         super().__init__()
         self.preferences = preferences if preferences is not None else QSettings("LiquidAion", "Observatory")
         config = apply_preferences(config, self.preferences)
+        # One registry per window: built-ins, enabled plugins (saved, --plugin, LIQUIDAION_PLUGINS) and,
+        # added below, the Observatory's own panels. The engine worker uses the same registry.
+        self.registry = registry if registry is not None else build_registry(
+            enabled=saved_enabled_plugins(self.preferences) + list(plugins))
+        self.events = EventHub(self)
         from .anatomy import Anatomy
-        from .connectome import load_graph
         self.graph_dir = Path(graph_dir)
         self.anatomy = Anatomy.load(Path(anatomy_dir))
-        self.node_table = pd.read_csv(self.graph_dir / "nodes.csv", dtype={"root_id": str})
-        graph_loaded = load_graph(self.graph_dir)
-        self.graph = graph_loaded[0] if isinstance(graph_loaded, tuple) else graph_loaded
-        self.node_ids = [str(x) for x in self.anatomy.neuron_ids]
-        if self.node_table["root_id"].tolist() != self.node_ids:
-            raise ValueError("Anatomical neuron IDs differ from the connectome order")
+        components = getattr(config, "components", None) or DEFAULT_COMPONENTS
+        self.connectome = load_connectome(self.registry, components["connectome"],
+                                          getattr(config, "component_params", None) or {}, self.graph_dir,
+                                          getattr(config, "seed", 42))
+        self.graph = self.connectome.weights
+        anatomy_ids = [str(x) for x in self.anatomy.neuron_ids]
+        self.anatomy_available = list(self.connectome.node_ids) == anatomy_ids
+        self.node_ids = list(self.connectome.node_ids)
+        nodes_file = (self.connectome.source_dir or self.graph_dir) / "nodes.csv"
+        self.node_table = pd.read_csv(nodes_file, dtype={"root_id": str}) if nodes_file.exists() else None
+        if self.node_table is None or self.node_table["root_id"].tolist() != self.node_ids:
+            self.node_table = pd.DataFrame({"root_id": self.node_ids,
+                                            "nt_type": self.connectome.nt_types or [None] * len(self.node_ids)})
         self.latest = {}
         self.model_info = None
         self.confirm_model_switch = self.default_confirm_model_switch
@@ -488,7 +654,8 @@ class ObservatoryWindow(QMainWindow):
         self.worker = None
         if start_worker:
             self.thread = QThread(self)
-            self.worker = EngineWorker(config, model_path, graph_dir, device, replay_path, debug_log)
+            self.worker = EngineWorker(config, model_path, graph_dir, device, replay_path, debug_log,
+                                       registry=self.registry)
             self.worker.moveToThread(self.thread)
             self.thread.started.connect(self.worker.initialize)
             self.command.connect(self.worker.execute)
@@ -500,6 +667,7 @@ class ObservatoryWindow(QMainWindow):
             self.worker.replay_result.connect(self.on_replay_result)
             self.worker.finished.connect(self.on_finished)
             self.worker.plugin_log.connect(self.on_plugin_log)
+            self.worker.continuous_progress.connect(self.on_continuous_progress)
             self.worker.error.connect(self.on_error)
             self.worker.stopped.connect(self.thread.quit, Qt.DirectConnection)
             self.thread.finished.connect(self.worker.deleteLater)
@@ -507,7 +675,40 @@ class ObservatoryWindow(QMainWindow):
         self._set_busy(True)
         self.status.setText("OFFLINE REPLAY · loading recording" if replay_path else "INITIALIZING · loading one local model")
 
+    # ------------------------------------------------------------------ shell and panels
+
+    BUILTIN_PANELS = (
+        # id, title, method, area
+        ("builtin.ui.clean_chat", "CLEAN · baseline", "_panel_clean_chat", "top"),
+        ("builtin.ui.anatomy", "ANATOMY · reservoir activity", "_panel_anatomy", "top"),
+        ("builtin.ui.fly_chat", "FLY · coupled", "_panel_fly_chat", "top"),
+        ("builtin.ui.model", "Language model · Neural Bypass", "_panel_model", "bottom"),
+        ("builtin.ui.coupling", "Coupling · reservoir dynamics", "_panel_coupling", "bottom"),
+        ("builtin.ui.measurements", "Live measurements", "_panel_measurements", "bottom"),
+        ("builtin.ui.neuron", "Selected neuron", "_panel_neuron", "bottom"),
+        ("builtin.ui.experiments", "Experiments", "_panel_experiments", "bottom"),
+        ("builtin.ui.plugins", "Plugins · scripts", "_panel_plugins", "bottom"),
+        ("builtin.ui.components", "Components", "_panel_components", "bottom"),
+    )
+    DEFAULT_TOP = ["builtin.ui.clean_chat", "builtin.ui.anatomy", "builtin.ui.fly_chat"]
+    DEFAULT_BOTTOM = ["builtin.ui.model", "builtin.ui.coupling", "builtin.ui.measurements", "builtin.ui.neuron",
+                      "builtin.ui.experiments"]
+    DEFAULT_TABS = {"builtin.ui.experiments": ["builtin.ui.plugins", "builtin.ui.components"]}
+
+    def _register_builtin_panels(self):
+        """The Observatory's own panels, registered through the same UI plugin contract as any plugin."""
+        if "builtin.ui.anatomy" in self.registry:
+            return
+
+        def register(plugin):
+            for component_id, title, method, area in self.BUILTIN_PANELS:
+                plugin.panel(component_id, title, lambda context, m=method: getattr(context.shell, m)(context),
+                             area=area, description="Built-in Observatory panel")
+        self.registry.register_builtin(register)
+
     def _build_ui(self, config, brain_factory):
+        self._config = config
+        self._brain_factory = brain_factory
         central = QWidget()
         outer = QVBoxLayout(central)
         outer.setContentsMargins(14, 10, 14, 10)
@@ -524,194 +725,19 @@ class ObservatoryWindow(QMainWindow):
         self.status.setStyleSheet("color:#7bb7fc;font-weight:700")
         top.addWidget(self.status)
         outer.addLayout(top)
-        main = QSplitter(Qt.Vertical)
-        three_panes = QSplitter(Qt.Horizontal)
-        self.clean_chat = ChatPanel("CLEAN  /  unmodified baseline", "#89baff")
-        self.fly_chat = ChatPanel("FLY  /  connectome feedback", "#8ce5be")
-        self.clean_chat.setMinimumWidth(260)
-        self.fly_chat.setMinimumWidth(260)
-        brain_group = QGroupBox("ANATOMY  /  registered FlyWire reference")
-        brain_layout = QVBoxLayout(brain_group)
-        self.brain = brain_factory(self.anatomy, self.graph)
-        self.brain.neuron_selected.connect(self.select_neuron)
-        brain_layout.addWidget(self.brain, 1)
-        brain_tools = QHBoxLayout()
-        self.connections = QCheckBox("Actual graph connections")
-        self.connections.toggled.connect(self.brain.set_connections_visible)
-        self.anatomy_check = QCheckBox("Anatomical surface")
-        self.anatomy_check.setChecked(True)
-        self.anatomy_check.toggled.connect(self.brain.set_anatomy_visible)
-        self.pause_button = QPushButton("Pause view")
-        self.pause_button.clicked.connect(self.toggle_visualization)
-        fit = QPushButton("Full brain")
-        fit.clicked.connect(self.brain.reset_camera)
-        focus = QPushButton("Focus graph")
-        focus.clicked.connect(self.brain.focus_neurons)
-        for widget in (self.connections, self.anatomy_check, self.pause_button, fit, focus):
-            brain_tools.addWidget(widget)
-        brain_layout.addLayout(brain_tools)
-        legend = QLabel("Signed rate: blue negative / red positive. Brightness = |state| / 0.300; zero = invisible. Gold = selected neuron.")
-        self.activity_legend = legend
-        legend.setStyleSheet("color:#9aaccc;font-size:10px")
-        brain_layout.addWidget(legend)
-        legend.setWordWrap(True)
-        brain_group.setMinimumWidth(620)
-        three_panes.addWidget(self.clean_chat)
-        three_panes.addWidget(brain_group)
-        three_panes.addWidget(self.fly_chat)
-        three_panes.setStretchFactor(0, 1)
-        three_panes.setStretchFactor(1, 2)
-        three_panes.setStretchFactor(2, 1)
-        three_panes.setSizes([390, 900, 390])
-        main.addWidget(three_panes)
-        side = QWidget()
-        side_layout = QHBoxLayout(side)
-        side_layout.setContentsMargins(0, 0, 0, 0)
-        controls = QGroupBox("COUPLING")
-        form = QFormLayout(controls)
-        self.steering = QCheckBox("Inject into hidden activations")
-        self.steering.setChecked(getattr(config, "steering_enabled", True))
-        self.feedback = QCheckBox("LLM → reservoir feedback")
-        self.feedback.setChecked(getattr(config, "feedback_enabled", True))
-        self.strength = QDoubleSpinBox()
-        self.strength.setRange(0, 1)
-        self.strength.setSingleStep(.05)
-        self.strength.setValue(getattr(config, "strength", .25))
-        self.feedback_strength = QDoubleSpinBox()
-        self.feedback_strength.setRange(0, 1)
-        self.feedback_strength.setSingleStep(.05)
-        self.feedback_strength.setValue(getattr(config, "feedback", .25))
-        self.activity_scale = QDoubleSpinBox()
-        self.activity_scale.setDecimals(3)
-        self.activity_scale.setRange(.001, 1)
-        self.activity_scale.setValue(.3)
-        self.activity_scale.setSingleStep(.05)
-        self.activity_scale.valueChanged.connect(self.set_activity_scale)
-        form.addRow("Display activity scale", self.activity_scale)
-        form.addRow(self.steering)
-        form.addRow("Steering strength", self.strength)
-        form.addRow(self.feedback)
-        form.addRow("Feedback strength", self.feedback_strength)
-        for widget in (self.steering, self.feedback):
-            widget.toggled.connect(self.configure)
-        for widget in (self.strength, self.feedback_strength):
-            widget.valueChanged.connect(self.configure)
-        dynamics = QGroupBox("RESERVOIR DYNAMICS")
-        dynamics_layout = QVBoxLayout(dynamics)
-        from .continuous_gui import LeakControl
-        self.leak = LeakControl(getattr(config, "leak_rate", 0.2))
-        self.leak.committed.connect(lambda value: self.command.emit("configure", {"leak_rate": value}))
-        dynamics_layout.addWidget(self.leak)
-        leak_help = QLabel("Smaller: slower change, potentially longer persistence. Larger: faster response. "
-                           "Applied to the live state at the next update; baseline 0.200.")
-        leak_help.setWordWrap(True)
-        leak_help.setStyleSheet("color:#8c9fbd;font-size:10px")
-        dynamics_layout.addWidget(leak_help)
-        self.model_panel = ModelPanel(getattr(config, "model_profile", "qwen3-0.6b"))
-        self.model_panel.load_requested.connect(self.request_model)
-        self.model_panel.bypasses_requested.connect(self.request_bypasses)
-        side_layout.addWidget(self.model_panel)
-        coupling_column = QVBoxLayout()
-        coupling_column.addWidget(controls)
-        coupling_column.addWidget(dynamics)
-        side_layout.addLayout(coupling_column)
-        metrics = QGroupBox("LIVE MEASUREMENTS")
-        metric_layout = QVBoxLayout(metrics)
-        self.metrics = QLabel("State RMS 0.0000\nRelative intervention 0.0000\nSimulation time 0.0\nInput norm 0.0000")
-        self.metrics.setStyleSheet("font-family:monospace;color:#bfcee6")
-        self.metrics.setMinimumHeight(130)
-        self.metrics.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-        metric_layout.addWidget(self.metrics)
-        metric_layout.addWidget(QLabel("Reservoir RMS history"))
-        self.rms_plot = TracePlot("#86dabc")
-        metric_layout.addWidget(self.rms_plot)
-        metric_layout.addWidget(QLabel("Relative hidden-state intervention"))
-        self.delta_plot = TracePlot("#e5bb79")
-        metric_layout.addWidget(self.delta_plot)
-        metric_layout.addWidget(QLabel("Measured steering magnitude"))
-        self.steering_plot = TracePlot("#bc9be9")
-        metric_layout.addWidget(self.steering_plot)
-        self.gpu_metrics = QLabel("Hardware measurement pending")
-        self.gpu_metrics.setStyleSheet("font-family:monospace;color:#91a9cd;font-size:11px")
-        self.gpu_metrics.setMinimumHeight(48)
-        metric_layout.insertWidget(1, self.gpu_metrics)
-        for plot in (self.rms_plot, self.delta_plot, self.steering_plot):
-            plot.setMinimumHeight(26)
-            plot.setMaximumHeight(32)
-        side_layout.addWidget(metrics, 2)
-        selection = QGroupBox("SELECTED NEURON")
-        selection_layout = QVBoxLayout(selection)
-        self.neuron_combo = QComboBox()
-        self.neuron_combo.addItems(self.node_ids)
-        self.neuron_combo.currentIndexChanged.connect(self.select_neuron)
-        selection_layout.addWidget(self.neuron_combo)
-        self.neuron_info = QLabel("Select a neuron in the 3D view or by root ID")
-        self.neuron_info.setWordWrap(True)
-        self.neuron_info.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        selection_layout.addWidget(self.neuron_info)
-        self.neuron_plot = TracePlot("#f5d285")
-        selection_layout.addWidget(self.neuron_plot)
-        time_base = QLabel("x: telemetry samples, not uniform time. Idle: 1 reservoir update per 250 ms. "
-                           "Generation: 2 updates per token, displayed at most every 50 ms.")
-        time_base.setWordWrap(True)
-        time_base.setStyleSheet("color:#7388aa;font-size:9px")
-        selection_layout.addWidget(time_base)
-        side_layout.addWidget(selection)
-        experiment = QGroupBox("EXPERIMENTS")
-        exp_layout = QVBoxLayout(experiment)
-        self.comparison = QComboBox()
-        self.comparison.addItem("Scientific: clean vs Fly (same tokens)", "clean_vs_fly")
-        self.comparison.addItem("Scientific: Fly vs random topology", "fly_vs_random")
-        exp_layout.addWidget(self.comparison)
-        self.scientific = QPushButton("Run controlled comparison")
-        self.scientific.clicked.connect(self.run_scientific)
-        exp_layout.addWidget(self.scientific)
-        demo_row = QHBoxLayout()
-        self.demo_buttons = []
-        for title, command in (("A · Coupling", "demo_clean_vs_fly"), ("B · Topology", "demo_random_topology"), ("C · Memory", "demo_persistence")):
-            button = QPushButton(title)
-            button.clicked.connect(lambda checked=False, cmd=command: self.run_demo(cmd))
-            demo_row.addWidget(button)
-            self.demo_buttons.append(button)
-        exp_layout.addLayout(demo_row)
-        self.continuous_button = QPushButton("Continuous generation · sliding window…")
-        self.continuous_button.clicked.connect(self.open_continuous)
-        exp_layout.addWidget(self.continuous_button)
-        self.continuous_dialog = None
-        plugin_row = QHBoxLayout()
-        self.plugin_run = QPushButton("Run Python Script…")
-        self.plugin_run.setToolTip("Run a trusted local .py file defining run(api) against this engine. "
-                                   "It executes with your full user permissions; there is no sandbox.")
-        self.plugin_run.clicked.connect(self.choose_plugin)
-        self.plugin_stop = QPushButton("Stop script")
-        self.plugin_stop.setToolTip("Request cooperative cancellation: generation stops at the next token and "
-                                    "api.check_cancelled() raises. Arbitrary code cannot be forcibly stopped.")
-        self.plugin_stop.clicked.connect(self.cancel_generation)
-        self.plugin_status = QLabel("Plugin: idle")
-        self.plugin_status.setStyleSheet("color:#8c9fbd;font-size:10px")
-        plugin_row.addWidget(self.plugin_run, 1)
-        plugin_row.addWidget(self.plugin_stop)
-        exp_layout.addLayout(plugin_row)
-        exp_layout.addWidget(self.plugin_status)
-        self.plugin_log = QTextEdit()
-        self.plugin_log.setReadOnly(True)
-        self.plugin_log.setMaximumHeight(110)
-        self.plugin_log.setPlaceholderText("Plugin log")
-        exp_layout.addWidget(self.plugin_log)
-        self.science_details = QCheckBox("Review full result and traces")
-        self.science_details.toggled.connect(self.render_science_result)
-        exp_layout.addWidget(self.science_details)
-        self.experiment_result = QTextBrowser()
-        self.experiment_result.setMinimumHeight(130)
-        self.experiment_result.setMaximumHeight(250)
-        self.experiment_result.setPlainText("Controlled comparisons use identical token context. Text differences alone do not establish topology benefit.")
-        exp_layout.addWidget(self.experiment_result)
-        side_layout.addWidget(experiment, 2)
-        main.addWidget(side)
-        main.setStretchFactor(0, 3)
-        main.setStretchFactor(1, 2)
-        main.setSizes([580, 360])
-        outer.addWidget(main, 1)
+        self.workspace = Workspace(self)
+        outer.addWidget(self.workspace, 1)
+        self._register_builtin_panels()
+        for spec in self.registry.list("ui_panel"):
+            dock = PanelDock(spec, self, persistent=spec.plugin_id == "builtin")
+            self.workspace.add(dock)
+            # Built-in panels always exist (the shell drives them); plugin panels are built when shown.
+            if spec.plugin_id == "builtin" or spec.metadata.get("visible", True):
+                dock.build()
+            else:
+                dock.hide()
+        self.workspace.arrange(self.DEFAULT_TOP, self.DEFAULT_BOTTOM, self.DEFAULT_TABS)
+        self._restore_layout()
         input_row = QHBoxLayout()
         self.prompt = QLineEdit()
         self.prompt.setPlaceholderText("Shared prompt for CLEAN and FLY. Each branch keeps its own history.")
@@ -775,14 +801,255 @@ class ObservatoryWindow(QMainWindow):
         self.footnote.setStyleSheet("color:#7388aa;font-size:10px")
         outer.addWidget(self.footnote)
         self.setCentralWidget(central)
+        self._build_menus()
+
+    def _build_menus(self):
+        view = self.menuBar().addMenu("View")
+        for component_id, dock in self.workspace.docks.items():
+            action = view.addAction(dock.spec.name)
+            action.setCheckable(True)
+            action.setChecked(not dock.isHidden())
+            action.setObjectName(f"toggle:{component_id}")
+            action.toggled.connect(lambda shown, d=dock: d.reopen() if shown else d.close())
+            dock.visibilityChanged.connect(lambda visible, a=action, d=dock: a.setChecked(not d.isHidden()))
+        view.addSeparator()
+        view.addAction("Reset layout").triggered.connect(self.reset_layout)
+        plugins = self.menuBar().addMenu("Plugins")
+        plugins.addAction("Manage plugins…").triggered.connect(self.manage_plugins)
+        plugins.addAction("Restore built-in components").triggered.connect(self.restore_builtin_components)
+
+    def _restore_layout(self):
+        state = self.preferences.value("workspace/state")
+        if state is not None:
+            self.workspace.restoreState(QByteArray(state), LAYOUT_VERSION)
+
+    def save_layout(self):
+        self.preferences.setValue("workspace/state", self.workspace.saveState(LAYOUT_VERSION))
+        self.preferences.sync()
+
+    def reset_layout(self):
+        self.workspace.arrange(self.DEFAULT_TOP, self.DEFAULT_BOTTOM, self.DEFAULT_TABS)
+        self.preferences.remove("workspace/state")
+
+    def _panel_clean_chat(self, context):
+        self.clean_chat = ChatPanel("CLEAN  /  unmodified baseline", "#89baff")
+        self.clean_chat.setMinimumWidth(260)
+        return self.clean_chat
+
+    def _panel_fly_chat(self, context):
+        self.fly_chat = ChatPanel("FLY  /  connectome feedback", "#8ce5be")
+        self.fly_chat.setMinimumWidth(260)
+        return self.fly_chat
+
+    def _panel_anatomy(self, context):
+        brain_group = QGroupBox("ANATOMY  /  registered FlyWire reference")
+        brain_layout = QVBoxLayout(brain_group)
+        self.brain = self._brain_factory(self.anatomy, self.graph) if self.anatomy_available else NoAnatomyView(
+            "The selected connectome's neurons are not the registered FlyWire CX512 anatomy; "
+            "the 3D view is unavailable. Telemetry and all other panels work.")
+        self.brain.neuron_selected.connect(self.select_neuron)
+        brain_layout.addWidget(self.brain, 1)
+        brain_tools = QHBoxLayout()
+        self.connections = QCheckBox("Actual graph connections")
+        self.connections.toggled.connect(self.brain.set_connections_visible)
+        self.anatomy_check = QCheckBox("Anatomical surface")
+        self.anatomy_check.setChecked(True)
+        self.anatomy_check.toggled.connect(self.brain.set_anatomy_visible)
+        self.pause_button = QPushButton("Pause view")
+        self.pause_button.clicked.connect(self.toggle_visualization)
+        fit = QPushButton("Full brain")
+        fit.clicked.connect(self.brain.reset_camera)
+        focus = QPushButton("Focus graph")
+        focus.clicked.connect(self.brain.focus_neurons)
+        for widget in (self.connections, self.anatomy_check, self.pause_button, fit, focus):
+            brain_tools.addWidget(widget)
+        brain_layout.addLayout(brain_tools)
+        legend = QLabel("Signed rate: blue negative / red positive. Brightness = |state| / 0.300; zero = invisible. Gold = selected neuron.")
+        self.activity_legend = legend
+        legend.setStyleSheet("color:#9aaccc;font-size:10px")
+        brain_layout.addWidget(legend)
+        legend.setWordWrap(True)
+        brain_group.setMinimumWidth(420)
+        return brain_group
+
+    def _panel_model(self, context):
+        self.model_panel = ModelPanel(getattr(self._config, "model_profile", "qwen3-0.6b"))
+        self.model_panel.load_requested.connect(self.request_model)
+        self.model_panel.bypasses_requested.connect(self.request_bypasses)
+        return self.model_panel
+
+    def _panel_coupling(self, context):
+        config = self._config
+        panel = QWidget()
+        column = QVBoxLayout(panel)
+        column.setContentsMargins(0, 0, 0, 0)
+        controls = QGroupBox("COUPLING")
+        form = QFormLayout(controls)
+        self.steering = QCheckBox("Inject into hidden activations")
+        self.steering.setChecked(getattr(config, "steering_enabled", True))
+        self.feedback = QCheckBox("LLM → reservoir feedback")
+        self.feedback.setChecked(getattr(config, "feedback_enabled", True))
+        self.strength = QDoubleSpinBox()
+        self.strength.setRange(0, 1)
+        self.strength.setSingleStep(.05)
+        self.strength.setValue(getattr(config, "strength", .25))
+        self.feedback_strength = QDoubleSpinBox()
+        self.feedback_strength.setRange(0, 1)
+        self.feedback_strength.setSingleStep(.05)
+        self.feedback_strength.setValue(getattr(config, "feedback", .25))
+        self.activity_scale = QDoubleSpinBox()
+        self.activity_scale.setDecimals(3)
+        self.activity_scale.setRange(.001, 1)
+        self.activity_scale.setValue(.3)
+        self.activity_scale.setSingleStep(.05)
+        self.activity_scale.valueChanged.connect(self.set_activity_scale)
+        form.addRow("Display activity scale", self.activity_scale)
+        form.addRow(self.steering)
+        form.addRow("Steering strength", self.strength)
+        form.addRow(self.feedback)
+        form.addRow("Feedback strength", self.feedback_strength)
+        for widget in (self.steering, self.feedback):
+            widget.toggled.connect(self.configure)
+        for widget in (self.strength, self.feedback_strength):
+            widget.valueChanged.connect(self.configure)
+        dynamics = QGroupBox("RESERVOIR DYNAMICS")
+        dynamics_layout = QVBoxLayout(dynamics)
+        from .continuous_gui import LeakControl
+        self.leak = LeakControl(getattr(config, "leak_rate", 0.2))
+        self.leak.committed.connect(lambda value: self.command.emit("configure", {"leak_rate": value}))
+        dynamics_layout.addWidget(self.leak)
+        leak_help = QLabel("Smaller: slower change, potentially longer persistence. Larger: faster response. "
+                           "Applied to the live state at the next update; baseline 0.200.")
+        leak_help.setWordWrap(True)
+        leak_help.setStyleSheet("color:#8c9fbd;font-size:10px")
+        dynamics_layout.addWidget(leak_help)
+        column.addWidget(controls)
+        column.addWidget(dynamics)
+        return panel
+
+    def _panel_measurements(self, context):
+        metrics = QGroupBox("LIVE MEASUREMENTS")
+        metric_layout = QVBoxLayout(metrics)
+        self.metrics = QLabel("State RMS 0.0000\nRelative intervention 0.0000\nSimulation time 0.0\nInput norm 0.0000")
+        self.metrics.setStyleSheet("font-family:monospace;color:#bfcee6")
+        self.metrics.setMinimumHeight(130)
+        self.metrics.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        metric_layout.addWidget(self.metrics)
+        metric_layout.addWidget(QLabel("Reservoir RMS history"))
+        self.rms_plot = TracePlot("#86dabc")
+        metric_layout.addWidget(self.rms_plot)
+        metric_layout.addWidget(QLabel("Relative hidden-state intervention"))
+        self.delta_plot = TracePlot("#e5bb79")
+        metric_layout.addWidget(self.delta_plot)
+        metric_layout.addWidget(QLabel("Measured steering magnitude"))
+        self.steering_plot = TracePlot("#bc9be9")
+        metric_layout.addWidget(self.steering_plot)
+        self.gpu_metrics = QLabel("Hardware measurement pending")
+        self.gpu_metrics.setStyleSheet("font-family:monospace;color:#91a9cd;font-size:11px")
+        self.gpu_metrics.setMinimumHeight(48)
+        metric_layout.insertWidget(1, self.gpu_metrics)
+        for plot in (self.rms_plot, self.delta_plot, self.steering_plot):
+            plot.setMinimumHeight(26)
+            plot.setMaximumHeight(32)
+        return metrics
+
+    def _panel_neuron(self, context):
+        selection = QGroupBox("SELECTED NEURON")
+        selection_layout = QVBoxLayout(selection)
+        self.neuron_combo = QComboBox()
+        self.neuron_combo.addItems(self.node_ids)
+        self.neuron_combo.currentIndexChanged.connect(self.select_neuron)
+        selection_layout.addWidget(self.neuron_combo)
+        self.neuron_info = QLabel("Select a neuron in the 3D view or by root ID")
+        self.neuron_info.setWordWrap(True)
+        self.neuron_info.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        selection_layout.addWidget(self.neuron_info)
+        self.neuron_plot = TracePlot("#f5d285")
+        selection_layout.addWidget(self.neuron_plot)
+        time_base = QLabel("x: telemetry samples, not uniform time. Idle: 1 reservoir update per 250 ms. "
+                           "Generation: 2 updates per token, displayed at most every 50 ms.")
+        time_base.setWordWrap(True)
+        time_base.setStyleSheet("color:#7388aa;font-size:9px")
+        selection_layout.addWidget(time_base)
+        return selection
+
+    def _panel_experiments(self, context):
+        experiment = QGroupBox("EXPERIMENTS")
+        exp_layout = QVBoxLayout(experiment)
+        self.comparison = QComboBox()
+        self.comparison.addItem("Scientific: clean vs Fly (same tokens)", "clean_vs_fly")
+        self.comparison.addItem("Scientific: Fly vs random topology", "fly_vs_random")
+        exp_layout.addWidget(self.comparison)
+        self.scientific = QPushButton("Run controlled comparison")
+        self.scientific.clicked.connect(self.run_scientific)
+        exp_layout.addWidget(self.scientific)
+        demo_row = QHBoxLayout()
+        self.demo_buttons = []
+        for title, command in (("A · Coupling", "demo_clean_vs_fly"), ("B · Topology", "demo_random_topology"), ("C · Memory", "demo_persistence")):
+            button = QPushButton(title)
+            button.clicked.connect(lambda checked=False, cmd=command: self.run_demo(cmd))
+            demo_row.addWidget(button)
+            self.demo_buttons.append(button)
+        exp_layout.addLayout(demo_row)
+        self.continuous_button = QPushButton("Continuous generation · sliding window…")
+        self.continuous_button.clicked.connect(self.open_continuous)
+        exp_layout.addWidget(self.continuous_button)
+        self.continuous_dialog = None
+        self.science_details = QCheckBox("Review full result and traces")
+        self.science_details.toggled.connect(self.render_science_result)
+        exp_layout.addWidget(self.science_details)
+        self.experiment_result = QTextBrowser()
+        self.experiment_result.setMinimumHeight(130)
+        self.experiment_result.setPlainText("Controlled comparisons use identical token context. Text differences alone do not establish topology benefit.")
+        exp_layout.addWidget(self.experiment_result)
+        return experiment
+
+    def _panel_plugins(self, context):
+        panel = QGroupBox("PLUGINS · SCRIPTS")
+        layout = QVBoxLayout(panel)
+        plugin_row = QHBoxLayout()
+        self.plugin_run = QPushButton("Run Python Script…")
+        self.plugin_run.setToolTip("Run a trusted local .py file defining run(api) against this engine. "
+                                   "It executes with your full user permissions; there is no sandbox.")
+        self.plugin_run.clicked.connect(self.choose_plugin)
+        self.plugin_stop = QPushButton("Stop script")
+        self.plugin_stop.setToolTip("Request cooperative cancellation: generation stops at the next token and "
+                                    "api.check_cancelled() raises. Arbitrary code cannot be forcibly stopped.")
+        self.plugin_stop.clicked.connect(self.cancel_generation)
+        plugin_row.addWidget(self.plugin_run, 1)
+        plugin_row.addWidget(self.plugin_stop)
+        layout.addLayout(plugin_row)
+        experiment_row = QHBoxLayout()
+        self.plugin_experiments = QComboBox()
+        for spec in self.registry.list("experiment"):
+            self.plugin_experiments.addItem(f"{spec.name} ({spec.component_id})", spec.component_id)
+        self.plugin_experiment_run = QPushButton("Run experiment")
+        self.plugin_experiment_run.clicked.connect(self.run_plugin_experiment)
+        experiment_row.addWidget(self.plugin_experiments, 1)
+        experiment_row.addWidget(self.plugin_experiment_run)
+        layout.addLayout(experiment_row)
+        self.plugin_status = QLabel("Plugin: idle")
+        self.plugin_status.setStyleSheet("color:#8c9fbd;font-size:10px")
+        layout.addWidget(self.plugin_status)
+        self.plugin_log = QTextEdit()
+        self.plugin_log.setReadOnly(True)
+        self.plugin_log.setPlaceholderText("Plugin log")
+        layout.addWidget(self.plugin_log, 1)
+        problems = {pid: message for pid, message in self.registry.errors.items()}
+        if problems:
+            self.plugin_log.append("Plugin loading problems:\n" + "\n".join(f"  {k}: {v}" for k, v in problems.items()))
+        return panel
+
+    def _panel_components(self, context):
+        return ComponentPanel(context)
 
     def _set_busy(self, busy):
         enabled = not busy and not self.is_replay
         for widget in (self.send, self.scientific, self.steering, self.feedback, self.strength, self.feedback_strength,
                        self.max_tokens, self.context_tokens, self.continuous_button, self.leak, self.plugin_run,
-                       *self.demo_buttons):
+                       self.plugin_experiment_run, *self.demo_buttons):
             widget.setEnabled(enabled)
-        self.plugin_stop.setEnabled(busy and self.active_operation == "plugin")
+        self.plugin_stop.setEnabled(busy and self.active_operation in {"plugin", "experiment"})
         self.model_panel.set_enabled(enabled)
         self.cancel.setEnabled(busy and not self.is_replay)
 
@@ -864,6 +1131,7 @@ class ObservatoryWindow(QMainWindow):
             if raw else "Shared prompt for CLEAN and FLY. Each branch keeps its own history.")
         if self.continuous_dialog is not None:
             self.continuous_dialog.set_model_info(info)
+        self.events.publish("model_loaded", info)
 
     def default_confirm_model_switch(self, display):
         answer = QMessageBox.question(self, "Switch language model",
@@ -903,16 +1171,19 @@ class ObservatoryWindow(QMainWindow):
         self.prompt.clear()
         self._set_busy(True)
         self.active_operation = "generate"
+        self.events.publish("experiment_started", {"operation": "generate"})
         self.status.setText("GENERATING · CLEAN → FLY · one shared model")
         self.command.emit("generate", {"prompt": prompt, "tokens": self.max_tokens.value()})
 
     @Slot(str, str)
     def on_token(self, branch, text):
         (self.clean_chat if branch == "clean" else self.fly_chat).stream(text)
+        self.events.publish("token", {"branch": branch, "text": text})
 
     @Slot(dict)
     def on_telemetry(self, snapshot):
         self.latest = snapshot
+        self.events.publish("telemetry", snapshot)
         state = snapshot.get("state", [])
         rms = float(snapshot.get("state_rms", 0))
         delta = float(snapshot.get("delta_relative_rms", 0))
@@ -1016,6 +1287,7 @@ class ObservatoryWindow(QMainWindow):
     def start_continuous(self, payload):
         self._set_busy(True)
         self.active_operation = "continuous"
+        self.events.publish("experiment_started", {"operation": "continuous"})
         self.status.setText(f"CONTINUOUS · {payload['condition']} · window {payload['window']} · {payload['total_tokens']} tokens")
         self.command.emit("continuous", payload)
 
@@ -1037,15 +1309,107 @@ class ObservatoryWindow(QMainWindow):
         payload = {"path": str(path)}
         if output_root is not None:
             payload["output_root"] = str(output_root)
+        self.events.publish("experiment_started", {"operation": "plugin", "script": str(path)})
         self.command.emit("plugin", payload)
+
+    def run_plugin_experiment(self, component_id=None, output_root=None):
+        """Run a registered experiment component (from an enabled plugin) on the engine worker."""
+        component_id = component_id or self.plugin_experiments.currentData()
+        if not component_id:
+            self.on_error("No plugin experiment is registered; enable a plugin that provides one (Plugins menu)")
+            return
+        if not self.live_engine_available or not self.send.isEnabled():
+            self.on_error("Stop or finish the current operation before running an experiment")
+            return
+        self.active_operation = "experiment"
+        self._set_busy(True)
+        self.plugin_log.clear()
+        self.plugin_status.setText(f"Plugin: RUNNING · {component_id}")
+        self.status.setText(f"EXPERIMENT · {component_id} · controls locked until it returns")
+        payload = {"id": component_id}
+        if output_root is not None:
+            payload["output_root"] = str(output_root)
+        self.events.publish("experiment_started", {"operation": "experiment", "id": component_id})
+        self.command.emit("experiment", payload)
+
+    @Slot(dict)
+    def on_continuous_progress(self, update):
+        self.events.publish("continuous_progress", update)
+
+    def manage_plugins(self):
+        """Enable or disable discovered plugins; takes effect at the next launch (no hot reload)."""
+        manifests, problems = discover(plugin_roots())
+        enabled = set(saved_enabled_plugins(self.preferences))
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Plugins")
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(QLabel("Plugins are trusted Python code with your full user permissions. Enable only "
+                                "plugins you trust. Changes apply after restarting the Observatory."))
+        table = QTableWidget(len(manifests), 5)
+        table.setHorizontalHeaderLabels(["Enabled", "Id", "Version", "Status", "Location"])
+        for row, manifest in enumerate(manifests):
+            item = QTableWidgetItem()
+            item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+            item.setCheckState(Qt.Checked if manifest.plugin_id in enabled else Qt.Unchecked)
+            table.setItem(row, 0, item)
+            status = "loaded" if manifest.plugin_id in self.registry.plugins else \
+                self.registry.errors.get(manifest.plugin_id, "not loaded")
+            for column, text in enumerate((manifest.plugin_id, manifest.version, status, str(manifest.path)), 1):
+                table.setItem(row, column, QTableWidgetItem(text))
+        layout.addWidget(table)
+        if problems:
+            layout.addWidget(QLabel("Invalid plugin directories:\n" + "\n".join(f"{k}: {v}" for k, v in problems.items())))
+        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        dialog.resize(900, 360)
+        if dialog.exec() == QDialog.Accepted:
+            chosen = [manifests[row].plugin_id for row in range(len(manifests))
+                      if table.item(row, 0).checkState() == Qt.Checked]
+            self.set_enabled_plugins(chosen)
+
+    def set_enabled_plugins(self, plugin_ids):
+        self.preferences.setValue("plugins/enabled", list(plugin_ids))
+        self.preferences.sync()
+        self.status.setText("PLUGINS · restart the Observatory to apply")
+
+    def restore_builtin_components(self):
+        """Explicit recovery: forget saved component selections (built-in reference at next launch)."""
+        self.preferences.remove("components")
+        self.preferences.sync()
+        self.status.setText("COMPONENTS · built-in reference selection restored for the next launch")
 
     @Slot(str)
     def on_plugin_log(self, line):
         self.plugin_log.append(line)
 
+    def _publish_outcome(self, command, result):
+        failed = isinstance(result, dict) and result.get("error")
+        if command in {"generate", "scientific", "continuous", "plugin", "experiment"} or command.startswith("demo_"):
+            if failed:
+                self.events.publish("experiment_failed", {"operation": command, "error": result.get("error")})
+                return
+            cancelled = isinstance(result, dict) and (
+                result.get("cancelled") or result.get("status") == "cancelled" or result.get("stop_reason") == "cancelled"
+                or any(isinstance(v, dict) and v.get("cancelled") for v in result.values()))
+            summary = {k: v for k, v in result.items() if isinstance(v, (str, int, float, bool))} \
+                if isinstance(result, dict) else {}
+            self.events.publish("experiment_cancelled" if cancelled else "experiment_completed",
+                                {"operation": command, "result": summary})
+        elif command == "configure" and isinstance(result, dict) and not failed:
+            self.events.publish("configuration_changed", result)
+            if "components" in result:
+                self.preferences.setValue("components/selection", json.dumps(
+                    {k: v for k, v in result["components"].items() if v != DEFAULT_COMPONENTS.get(k)}))
+                self.preferences.setValue("components/params", json.dumps(result.get("component_params") or {}))
+        elif command == "new_session" and not failed:
+            self.events.publish("session_started", {"operation": "new_session"})
+
     @Slot(str, object)
     def on_finished(self, command, result):
-        if command == "plugin":
+        self._publish_outcome(command, result)
+        if command in {"plugin", "experiment"}:
             self.active_operation = None
             self._set_busy(False)
             if isinstance(result, dict):
@@ -1207,12 +1571,14 @@ class ObservatoryWindow(QMainWindow):
         prompt = self.prompt.text().strip() or "Describe a quiet morning in one sentence."
         self._set_busy(True)
         self.active_operation = "science"
+        self.events.publish("experiment_started", {"operation": "scientific"})
         self.status.setText("SCIENTIFIC COMPARISON · identical token context")
         self.command.emit("scientific", {"prompt": prompt, "comparison": self.comparison.currentData(), "tokens": min(16, self.max_tokens.value())})
 
     def run_demo(self, command):
         self._set_busy(True)
         self.active_operation = "science"
+        self.events.publish("experiment_started", {"operation": command})
         self.status.setText("RUNNING DEMONSTRATION")
         self.command.emit(command, self.prompt.text().strip() or "Describe a quiet morning in one sentence.")
 
@@ -1298,13 +1664,17 @@ class ObservatoryWindow(QMainWindow):
                 self.status.setText("CLOSING · waiting for current model operation")
                 QTimer.singleShot(500, self.close)
                 return
+        self.save_layout()
+        for dock in self.workspace.docks.values():
+            if not dock.persistent:
+                dock.dispose()
         self.brain.close()
         super().closeEvent(event)
 
 
-def run_gui(config, model_path, graph_dir, anatomy_dir, replay_path=None, device="cpu", debug_log=None):
+def run_gui(config, model_path, graph_dir, anatomy_dir, replay_path=None, device="cpu", debug_log=None, plugins=()):
     app = QApplication.instance() or QApplication([])
     window = ObservatoryWindow(config, model_path, graph_dir, anatomy_dir, device=device, replay_path=replay_path,
-                               debug_log=debug_log)
+                               debug_log=debug_log, plugins=plugins)
     window.show()
     return app.exec()

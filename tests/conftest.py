@@ -32,7 +32,7 @@ def write_graph(directory):
     return directory
 
 
-def build_engine(monkeypatch, tmp_path, tokenizer=None, vocab_size=64, **config):
+def build_engine(monkeypatch, tmp_path, tokenizer=None, vocab_size=64, registry=None, **config):
     torch.set_num_threads(1)
     torch.manual_seed(321)
     model_config = Qwen3Config(vocab_size=vocab_size, hidden_size=32, intermediate_size=64,
@@ -50,7 +50,7 @@ def build_engine(monkeypatch, tmp_path, tokenizer=None, vocab_size=64, **config)
                     max_new_tokens=3, threads=1)
     settings.update(config)
     result = ObservatoryEngine("software-test-only", write_graph(tmp_path / "graph"),
-                               config=ObservatoryConfig(**settings))
+                               config=ObservatoryConfig(**settings), registry=registry)
     result._test_load_calls = calls
     return result
 

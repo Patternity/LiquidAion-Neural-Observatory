@@ -27,6 +27,9 @@ class Dynamics:
 
 
 class Reservoir:
+    """The built-in reservoir (builtin.reservoir.leaky_tanh). Capabilities are declared for plugins."""
+    capabilities = ("idle", "extra_input", "set_leak", "snapshot")
+
     def __init__(self, graph: sparse.csr_matrix, features: int = 64,
                  seed: int = 42, dynamics: Dynamics = Dynamics()):
         graph = graph.astype(np.float64).tocsr()
@@ -49,6 +52,10 @@ class Reservoir:
         self.fingerprint = hashlib.sha256(
             self.w.data.tobytes() + self.w.indices.tobytes() + self.w.indptr.tobytes()
             + self.input.tobytes() + json.dumps(asdict(self.dynamics), sort_keys=True).encode()).hexdigest()
+
+    @property
+    def input_features(self) -> int:
+        return self.input.shape[1]
 
     @property
     def leak(self) -> float:

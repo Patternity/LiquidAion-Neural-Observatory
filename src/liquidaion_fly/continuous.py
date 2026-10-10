@@ -64,7 +64,7 @@ import numpy as np
 import torch
 
 from .llm import compare_logits, stop_token_ids
-from .reservoir import Reservoir, random_control
+from .reservoir import Reservoir  # noqa: F401 (re-export for older scripts)
 
 LOG = logging.getLogger("liquidaion.continuous")
 ROOT = Path(__file__).resolve().parents[2]
@@ -240,12 +240,10 @@ class ContinuousRun:
         self.config = config
         self.llm = engine.llm
         self.output = Path(output) if output is not None else None
-        graph = random_control(engine.graph, engine.config.seed) if config.condition == "random" else engine.graph
+        # The selected connectome, or its random-topology control; reservoirs come from the selected provider.
+        graph = engine.control_connectome() if config.condition == "random" else engine.connectome
         self.graph = graph
-        self.reservoir = Reservoir(graph, features=engine.config.features, seed=engine.config.seed) \
-            if config.coupled else None
-        if self.reservoir is not None:
-            self.reservoir.set_leak(config.leak_rate)
+        self.reservoir = engine.create_reservoir(graph, leak=config.leak_rate) if config.coupled else None
         self.coupling = self._coupling(self.reservoir) if config.coupled else None
         seed_ids = seed_token_ids(self.llm.tokenizer, config.seed_text)
         if not seed_ids:
@@ -270,12 +268,11 @@ class ContinuousRun:
         self.event_states: dict[str, np.ndarray] = {}
         self._schedule_injections = sorted((int(p), str(t)) for p, t in config.injections)
         self._schedule_leak = sorted((int(p), float(v)) for p, v in config.leak_schedule)
-        self.da_indices, self.da_root_ids = cue_neuron_indices(engine.graph_dir, "da", engine.config.seed)
-        target = [] if config.cue_target == "off" else cue_neuron_indices(engine.graph_dir, config.cue_target,
-                                                                              engine.config.seed)[0]
+        has_labels = engine.connectome.nt_types is not None
+        self.da_indices, self.da_root_ids = engine.cue_group("da", require_input=False) if has_labels else ([], [])
+        target, roots = ([], []) if config.cue_target == "off" or not config.coupled else engine.cue_group(config.cue_target)
         self.cue_indices = target
-        self.cue_root_ids = cue_neuron_indices(engine.graph_dir, config.cue_target, engine.config.seed)[1] \
-            if target else []
+        self.cue_root_ids = roots if target else []
         self.cue_vector = None
         if config.coupled and target and config.cue_strength > 0:
             self.cue_vector = np.zeros(len(self.reservoir.state))
@@ -580,8 +577,7 @@ class ContinuousRun:
             if state is None:
                 coupling = None
             else:
-                reservoir = Reservoir(self.graph, features=self.engine.config.features, seed=self.engine.config.seed)
-                reservoir.set_leak(checkpoint["leak"])
+                reservoir = self.engine.create_reservoir(self.graph, leak=checkpoint["leak"])
                 reservoir.state = state.copy()
                 reservoir.time = checkpoint["time"]
                 coupling = self._coupling(reservoir)

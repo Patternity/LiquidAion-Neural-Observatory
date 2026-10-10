@@ -122,14 +122,19 @@ class SteeringObserver:
         h = _cpu(hidden)
         self.current["captures"][layer] = {"hidden_norm": norm(h), "features": np.array(features, dtype=np.float64)}
 
-    def steering(self, layer: int | None, state: np.ndarray, compact: torch.Tensor, raw: torch.Tensor,
-                 centered: torch.Tensor, direction: torch.Tensor, baseline: torch.Tensor,
+    def steering(self, layer: int | None, state: np.ndarray, internals: dict[str, Any], baseline: torch.Tensor,
                  modified: torch.Tensor) -> None:
+        """internals: what the neural interface exposes (original: compact, raw, centered, direction)."""
         before, after = _cpu(baseline), _cpu(modified)
-        self.current["steering"][layer] = {
-            "state_used": np.array(state, dtype=np.float64), "compact": _cpu(compact), "raw": _cpu(raw),
-            "centered": _cpu(centered), "direction": _cpu(direction), "hidden_before": before,
-            "applied_delta": after - before}
+        entry = {"state_used": np.array(state, dtype=np.float64), "hidden_before": before,
+                 "applied_delta": after - before}
+        for key in ("compact", "raw", "centered", "direction", "steering_vector"):
+            if isinstance(internals.get(key), (torch.Tensor, np.ndarray)):
+                entry[key] = _cpu(internals[key])
+        # An interface that names no steering vector is measured by the delta it actually applied.
+        entry.setdefault("steering_vector", entry["applied_delta"])
+        entry.setdefault("direction", entry["steering_vector"])
+        self.current["steering"][layer] = entry
 
     def feedback(self, layer: int | None, scaled_input: np.ndarray) -> None:
         self.current["feedback"][layer] = np.array(scaled_input, dtype=np.float64)
@@ -179,6 +184,10 @@ def _readout_basis(readout: np.ndarray) -> np.ndarray:
 
 
 def projection_report(coupling: Any) -> dict[str, Any]:
+    interface = getattr(coupling, "interface", coupling)
+    if not (hasattr(interface, "readout") and hasattr(interface, "decoder")):
+        return {"note": "this neural interface exposes no linear readout/decoder; projection analysis skipped",
+                "interface": interface.describe() if hasattr(interface, "describe") else None}
     readout = np.asarray(coupling.readout, dtype=np.float64)
     decoder = coupling.decoder.numpy().astype(np.float64)
     singular_readout = np.linalg.svd(readout, compute_uv=False)
@@ -302,7 +311,8 @@ def run_probe(engine: Any, prompt: str, max_tokens: int = 48, output: Path | Non
 
 def analyse(passes: list[dict[str, Any]], clean_logits: list, fly_logits: list, off_logits: list,
             coupling: Any) -> dict[str, Any]:
-    basis = _readout_basis(np.asarray(coupling.readout, dtype=np.float64))
+    interface = getattr(coupling, "interface", coupling)
+    basis = _readout_basis(np.asarray(interface.readout, dtype=np.float64)) if hasattr(interface, "readout") else None
     rows, vectors = [], {"state_before": [], "state_after": [], "state_used": [], "compact": [], "steering": [],
                          "applied_delta": [], "input": []}
     references: dict[str, np.ndarray | None] = {"state": None, "compact": None, "steering": None}
@@ -331,8 +341,10 @@ def analyse(passes: list[dict[str, Any]], clean_logits: list, fly_logits: list, 
         row.update({"state_rms_before": float(np.sqrt(np.mean(before ** 2))),
                     "state_rms_after": float(np.sqrt(np.mean(after ** 2))), "state_norm_after": norm(after),
                     "state_change_norm": norm(change),
-                    "state_readout_fraction": norm(basis.T @ after) / norm(after) if norm(after) > ZERO_NORM else math.nan,
-                    "change_readout_fraction": norm(basis.T @ change) / norm(change) if norm(change) > ZERO_NORM else math.nan})
+                    "state_readout_fraction": norm(basis.T @ after) / norm(after)
+                    if basis is not None and norm(after) > ZERO_NORM else math.nan,
+                    "change_readout_fraction": norm(basis.T @ change) / norm(change)
+                    if basis is not None and norm(change) > ZERO_NORM else math.nan})
         tracked("state", after, step, row, "state")
         vectors["state_before"].append(before)
         vectors["state_after"].append(after)
@@ -355,15 +367,17 @@ def analyse(passes: list[dict[str, Any]], clean_logits: list, fly_logits: list, 
         row["feedback_input_norm"] = float(sum(norm(v) for v in data["feedback"].values()))
         vectors["input"].append(reservoir_input)
         if first is not None:
-            vector = first["centered"]
-            row.update({"compact_norm": norm(first["compact"]), "steering_norm": norm(vector),
+            vector = first["steering_vector"]
+            row.update({"compact_norm": norm(first["compact"]) if "compact" in first else math.nan,
+                        "steering_norm": norm(vector),
                         "steering_rms": float(np.sqrt(np.mean(vector ** 2))),
                         "normalization_active": bool(np.sqrt(np.mean(vector ** 2)) > 1.0),
                         "steering_layers": ";".join(str(k) for k in sorted(steering, key=lambda k: -1 if k is None else k)),
                         "direction_max_dev_across_layers": float(max(np.abs(s["direction"] - first["direction"]).max()
                                                                      for s in steering.values())),
                         "state_used_minus_before_norm": norm(used - before)})
-            tracked("compact", first["compact"], step, row, "compact")
+            if "compact" in first:
+                tracked("compact", first["compact"], step, row, "compact")
             tracked("steering", vector, step, row, "steering")
             deltas = [s["applied_delta"] for s in steering.values()]
             hidden = [s["hidden_before"] for s in steering.values()]
@@ -372,7 +386,8 @@ def analyse(passes: list[dict[str, Any]], clean_logits: list, fly_logits: list, 
             row["applied_relative_norm"] = float(np.mean([norm(d) / norm(h) for d, h in zip(deltas, hidden)
                                                           if norm(h) > ZERO_NORM]))
             row["applied_vs_steering_cos"] = cosine(deltas[0], vector)
-            vectors["compact"].append(first["compact"])
+            if "compact" in first:
+                vectors["compact"].append(first["compact"])
             vectors["steering"].append(vector)
             vectors["applied_delta"].append(deltas[0])
         if step < len(fly_logits) and step < len(clean_logits):

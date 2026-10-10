@@ -113,6 +113,32 @@ class ExperimentAPI:
         self._engine.configure(**settings)
         return self.get_config()
 
+    # ------------------------------------------------------------ components
+
+    def list_components(self, category: str | None = None) -> list[dict[str, Any]]:
+        """Registered components (built-in and enabled plugins), optionally of one category."""
+        return [spec.describe() for spec in self._engine.registry.list(category)]
+
+    def components(self) -> dict[str, Any]:
+        """The selected component per category, with versions and parameters."""
+        return self._engine.components_info()
+
+    def select_components(self, params: dict[str, dict] | None = None, **selection: str) -> dict[str, Any]:
+        """Select components by category, e.g. select_components(neural_interface="myplugin.my_interface").
+
+        Same validation and application path as the GUI. Changing the connectome or reservoir
+        starts a zero reservoir state; changing the interface or coupling keeps the state."""
+        settings: dict[str, Any] = {"components": selection}
+        if params:
+            settings["component_params"] = params
+        self._engine.configure(**settings)
+        return self.components()
+
+    def set_component_params(self, component_id: str, **params: Any) -> dict[str, Any]:
+        """Parameters of a component (validated against its declared Parameter list)."""
+        self._engine.configure(component_params={component_id: params})
+        return self.components()
+
     # ------------------------------------------------------------ reset
 
     def new_session(self) -> None:
@@ -310,21 +336,37 @@ def load_plugin(path: str | Path) -> Callable[[ExperimentAPI], Any]:
 
 def run_plugin(engine: Any, path: str | Path, cancel_event: Event, log: Callable[[str], None],
                on_telemetry: Callable | None = None, output_root: Path = DEFAULT_OUTPUT_ROOT) -> dict[str, Any]:
-    """Execute one plugin and return its status; a script error is logged with its traceback and
-    returned as status "error" (with "error" set), leaving the engine usable.
+    """Execute one experiment script (run(api)) and return its status; see _execute."""
+    path = Path(path).resolve()
+    return _execute(engine, lambda: load_plugin(path), path.name, path, cancel_event, log, on_telemetry, output_root,
+                    {"script": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
+
+
+def run_experiment(engine: Any, component_id: str, cancel_event: Event, log: Callable[[str], None],
+                   on_telemetry: Callable | None = None, output_root: Path = DEFAULT_OUTPUT_ROOT) -> dict[str, Any]:
+    """Execute a registered experiment component (category "experiment") like a script."""
+    spec = engine.registry.get(component_id, "experiment")
+    manifest = engine.registry.plugins.get(spec.plugin_id)
+    script = Path(manifest.path / manifest.entry) if manifest and manifest.path else Path(component_id + ".py")
+    return _execute(engine, lambda: spec.factory, component_id, script, cancel_event, log, on_telemetry, output_root,
+                    {"experiment": component_id, "plugin": spec.plugin_id, "version": spec.version})
+
+
+def _execute(engine: Any, resolve: Callable[[], Callable], label: str, script: Path, cancel_event: Event,
+             log: Callable[[str], None], on_telemetry: Callable | None, output_root: Path,
+             identity: dict[str, Any]) -> dict[str, Any]:
+    """Run run(api); a failure is logged with its traceback and returned as status "error".
 
     Engine hooks are always detached by the engine itself; any forward hook still present
-    afterwards was left by the script and is removed so later inference stays uncoupled.
+    afterwards was left by the code and is removed so later inference stays uncoupled.
     """
-    path = Path(path).resolve()
-    api = ExperimentAPI(engine, path, cancel_event, log, on_telemetry, output_root)
+    api = ExperimentAPI(engine, script, cancel_event, log, on_telemetry, output_root)
     started = datetime.now(timezone.utc).isoformat()
     status, error = "finished", None
-    engine.recording.append("plugin_started", script=str(path),
-                            sha256=hashlib.sha256(path.read_bytes()).hexdigest())
-    log(f"Running {path.name}")
+    engine.recording.append("plugin_started", **identity)
+    log(f"Running {label}")
     try:
-        load_plugin(path)(api)
+        resolve()(api)
         if cancel_event.is_set():
             status = "cancelled"
     except PluginCancelled:
@@ -335,20 +377,19 @@ def run_plugin(engine: Any, path: str | Path, cancel_event: Event, log: Callable
     finally:
         leftover = engine._hook_count()
         if leftover:
-            for layer in engine.llm.model.model.layers:
+            for layer in engine.model_adapter.layers(engine.llm.model):
                 layer._forward_hooks.clear()
-            log(f"Removed {leftover} forward hook(s) left by the script")
-        engine.recording.append("plugin_finished", script=str(path), status=status, error=error,
-                                saved=api.saved)
+            log(f"Removed {leftover} forward hook(s) left by the code")
+        engine.recording.append("plugin_finished", **identity, status=status, error=error, saved=api.saved)
         if api._output_dir is not None:
             (api._output_dir / "plugin_run.json").write_text(json.dumps(
-                {"script": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "started_utc": started,
-                 "finished_utc": datetime.now(timezone.utc).isoformat(), "status": status, "error": error,
-                 "saved": api.saved}, ensure_ascii=False, indent=2) + "\n")
-        log(f"{path.name}: {status}" + (f" ({error})" if error else ""))
-    result = {"status": status, "script": str(path), "saved": api.saved,
-            "output": str(api._output_dir) if api._output_dir else None, "sessions_touched": api.sessions_touched,
-            "model": engine.model_info()}
+                {**identity, "started_utc": started, "finished_utc": datetime.now(timezone.utc).isoformat(),
+                 "status": status, "error": error, "saved": api.saved, "components": engine.components_info()},
+                ensure_ascii=False, indent=2, default=str) + "\n")
+        log(f"{label}: {status}" + (f" ({error})" if error else ""))
+    result = {"status": status, "script": str(script), "saved": api.saved,
+              "output": str(api._output_dir) if api._output_dir else None, "sessions_touched": api.sessions_touched,
+              "model": engine.model_info()}
     if error:
-        result["error"] = f"{path.name} failed: {error} (traceback in the plugin log)"
+        result["error"] = f"{label} failed: {error} (traceback in the plugin log)"
     return result
