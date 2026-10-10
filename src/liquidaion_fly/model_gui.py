@@ -244,7 +244,23 @@ class ModelPanel(QWidget):
             return
         rows = self.value()
         if not active_bypasses(rows):
-            self.state.setText("Not applied: enable at least one bypass")
+            # The engine always runs at least one bypass; never show a state it is not running.
+            # Unchecking the last enabled row is undone (decouple Fly with the COUPLING switches).
+            for row in self.rows:
+                if not row.enabled.isChecked() and [*row.value()[:2], True] in normalize_bypasses(self._applied_rows()):
+                    row.enabled.blockSignals(True)
+                    row.enabled.setChecked(True)
+                    row.enabled.blockSignals(False)
+                    break
+            self._refresh()
+            rows = self.value()
+            if not active_bypasses(rows):
+                self.state.setText("Not applied: enable at least one bypass")
+                return
+            self.state.setText("At least one bypass must stay enabled. To decouple Fly, switch off "
+                               "'Inject into hidden activations' and 'LLM → reservoir feedback'.")
+            if rows != normalize_bypasses(self._applied_rows()):
+                self.bypasses_requested.emit(rows)
             return
         if rows == normalize_bypasses(self._applied_rows()):
             self.state.setText(f"Applied: {self._label(rows)}")

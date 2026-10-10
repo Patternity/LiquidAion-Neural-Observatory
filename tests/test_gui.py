@@ -17,6 +17,7 @@ import shiboken6
 from PySide6.QtCore import QSettings, Signal
 from PySide6.QtWidgets import QApplication, QWidget, QTextEdit
 
+from liquidaion_fly.bypass import active_bypasses
 from liquidaion_fly.observatory_gui import ObservatoryWindow, EngineWorker
 from liquidaion_fly.observatory_engine import ObservatoryConfig
 from liquidaion_fly.recording import SessionRecording
@@ -503,9 +504,13 @@ def test_bypass_rows_add_edit_remove_update_the_engine(window):
     assert "1 duplicate row applied once" in panel.order.text(), "Identical rows are flagged, not double-applied"
     for row in list(panel.rows):
         row.enabled.setChecked(False)
-    assert panel.state.text().startswith("Not applied"), "At least one bypass must stay enabled"
+    assert [row.enabled.isChecked() for row in panel.rows].count(True) == 1, "The last enabled row stays enabled"
+    assert active_bypasses(panel.value()) == active_bypasses(calls[-1][1]["bypasses"]), "Panel shows what runs"
+    assert "must stay enabled" in panel.state.text()
     sent = len(calls)
     panel.rows[0].enabled.setChecked(True)
+    for row in panel.rows[1:]:
+        row.enabled.setChecked(False)
     panel.rows[2].remove.click()
     assert len(panel.rows) == 2 and calls[-1] == ("configure", {"bypasses": [[6, 14, True], [20, 5, False]]})
     assert len(calls) > sent
@@ -513,6 +518,16 @@ def test_bypass_rows_add_edit_remove_update_the_engine(window):
     assert not panel.add.isEnabled() and not panel.rows[0].capture.isEnabled() and not panel.rows[1].remove.isEnabled()
     window._set_busy(False)
     assert panel.add.isEnabled() and panel.rows[1].remove.isEnabled()
+
+
+def test_last_enabled_bypass_cannot_be_unchecked(window):
+    calls = []
+    window.command.connect(lambda command, payload: calls.append((command, payload)))
+    panel = window.model_panel
+    window.show_model(model_info("qwen3-4b-base", 36, 2560, 8, 18, "base"))
+    panel.rows[0].enabled.setChecked(False)
+    assert panel.rows[0].enabled.isChecked() and not calls, "Nothing changes: the engine keeps running 8 -> 18"
+    assert "must stay enabled" in panel.state.text() and "Active: 1 bypass" in panel.order.text()
 
 
 def test_model_switch_requires_confirmation_and_persists_choice(window):
