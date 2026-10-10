@@ -112,6 +112,8 @@ multi-bypass option.
 
 ## Python plugins
 
+(These are *experiment scripts*. Plugin *packages*, which add components and panels, are described in [PLUGINS.md](PLUGINS.md).)
+
 A plugin is an ordinary `.py` file that defines `run(api)`:
 
 ```python
@@ -166,6 +168,8 @@ chat histories, the chat panes are cleared.
 | `api.load_model(profile, bypasses=None)` | Switch the language model, as the Load button does; this resets the reservoir and the chats. |
 | `api.advance_idle(steps=1)` | Idle reservoir updates without input, as in the GUI's idle dynamics. Each step is dt of simulation time, not a token. Returns a state copy. |
 | `api.set_output_name(name)`, `api.graph_dir` | Name the results folder (call it before the first output); read the connectome directory. |
+| `api.list_components(category=None)`, `api.components()` | Registered components; the current selection with versions and parameters. |
+| `api.select_components(params=None, **{category: id})`, `api.set_component_params(id, **params)` | Select or configure neural interface, coupling, reservoir or connectome through the same validated path as the GUI. See [PLUGINS.md](PLUGINS.md). |
 | `api.log(message)` | Add a line to the plugin log. |
 | `api.is_cancelled()`, `api.check_cancelled()` | Cooperative cancellation. |
 | `api.output_dir` | The run directory. You may write other files there with ordinary Python. |

@@ -6,6 +6,24 @@ All notable changes to this project are documented here. Versions follow
 ## [Unreleased]
 
 ### Added
+- Plugin-first architecture (`docs/PLUGINS.md`, `docs/PLUGIN_DEVELOPMENT_GUIDE.md`).
+  - One registry (`plugin_api`) for model adapters, connectomes, reservoirs, neural interfaces,
+    coupling policies, modulation, experiments and Qt panels.
+  - Manifest-based discovery; only explicitly enabled plugins are imported.
+  - Dependency, API-version and duplicate checks.
+  - The reference behaviour moved, unchanged, into built-in components:
+    - `OriginalNeuralInterface`;
+    - legacy and synchronous coupling policies;
+    - FlyWire CX512 and random-control connectomes;
+    - leaky-tanh reservoir;
+    - Qwen3 adapter;
+    - neuron cue.
+  - Before/after captures are exactly equal; golden tests pass.
+  - The Observatory window is a dock workspace of registered panels with saved layouts.
+  - Thread-safe panel events and a schema-driven parameter editor.
+  - A Components panel and a Plugins manager.
+  - Three community examples in `plugins/packages/`.
+  - Per-token telemetry caches the configuration snapshot instead of deep-copying it every token.
 - Research plugins (`docs/RESEARCH_PLUGINS.md`).
   - `leak_rate_dynamics.py` runs controlled or free probes at several leak rates.
     - Optional fixed warm-up and idle retention.
