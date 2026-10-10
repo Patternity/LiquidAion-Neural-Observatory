@@ -116,7 +116,7 @@ def test_dopamine_plugin_shadow_mode_with_and_without_anatomy(engine, tmp_path):
     api, lines = run_example(engine, tmp_path, "dopamine_field_prototype.py", TOKENS=12, INJECTION=(3, "Hi"),
                              ANATOMY_DIR=str(anatomy), POST_SECONDS=1.0, SENSITIVITY=10.0)
     metadata = json.loads((api.output_dir / "metadata.json").read_text())
-    assert metadata["min_concentration"] >= 0 and metadata["source"]["cued_tokens"] > 0
+    assert metadata["min_concentration"] >= 0 and metadata["source"]["cued_passes"] == metadata["source"]["injected_passes"] > 0
     assert 0.05 <= metadata["leak_range"][0] <= metadata["leak_range"][1] <= 0.35
     assert len(list((api.output_dir / "plots").glob("*.png"))) == 7
     assert_no_hooks(engine)
@@ -149,3 +149,21 @@ def test_leak_dynamics_plugin_resets_reuses_tokens_and_does_not_reload(engine, t
     assert all(not r.get("kl_clean_fly") for r in rows if r["phase"] == "measure"), "No Clean-vs-Fly KL in free mode"
     assert not (api.output_dir / "steering_vectors.npz").exists() and not (api.output_dir / "plots").exists()
     assert_no_hooks(engine)
+
+
+def test_state_trace_records_every_forward_pass_without_changing_the_run(engine, tmp_path):
+    from liquidaion_fly.continuous import ContinuousConfig, ContinuousRun, load_run
+    base = dict(seed_text="Once", window=8, total_tokens=6, checkpoints=(), probe_tokens=1, cue_target="da",
+                injections=((2, "Hi!"),))
+    runs = {}
+    for traced in (False, True):
+        engine.new_session()
+        ContinuousRun(engine, ContinuousConfig(**base, state_trace=traced), tmp_path / str(traced)).run()
+        runs[traced] = load_run(tmp_path / str(traced))
+    assert runs[False]["state_trace"] is None
+    assert runs[False]["tokens"] == runs[True]["tokens"], "Recording only: the run is unchanged"
+    trace = runs[True]["state_trace"]
+    summary = runs[True]["summary"]
+    assert len(trace["states"]) == summary["forward_calls"] == summary["stream_tokens"]
+    assert int((~trace["autonomous"]).sum()) == summary["external_tokens"] == 3
+    assert trace["cue_applied"].sum() == 3

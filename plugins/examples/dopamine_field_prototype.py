@@ -2,7 +2,7 @@
 
 1. Audits the CX512 anatomy actually present (data_availability.json).
 2. Obtains per-token reservoir states: a short Continuous Generation run (optionally with the
-   existing DA-neuron cue) or an existing run directory saved with snapshot_interval=1.
+   existing DA-neuron cue) or an existing run directory saved with state_trace=True.
 3. Maps DA-classified neurons' signed activations to a nonnegative release proxy, integrates
    dC/dt = D lap(C) - k C + S on a voxel grid around the community-marked FlyWire positions
    (a MARKER-PROXY: not release sites), and computes hypothetical local leak rates f(C_i),
@@ -19,7 +19,7 @@ from liquidaion_fly.dopamine_field import FieldConfig, LeakResponse, audit_anato
 
 # --- activity source -------------------------------------------------------------------------
 SOURCE = "continuous"             # "continuous" (new short run) or "existing_run"
-EXISTING_RUN = None               # path to a continuous run directory saved with snapshot_interval=1
+EXISTING_RUN = None               # path to a continuous run directory saved with state_trace=True
 SEED_TEXT = "Однажды в студёную зимнюю пору"
 TOKENS = 160
 CUE_TARGET = "da"                 # existing cue on the 16 DA neurons while injected tokens are processed; "off"
@@ -31,7 +31,7 @@ ANATOMY_DIR = None                # None = <graph dir>/../anatomy
 DIFFUSION_UM2_PER_S = 200.0
 CLEARANCE_PER_S = 0.5
 VOXEL_UM = 5.0
-TOKEN_INTERVAL_S = 0.1            # field time per token step
+TOKEN_INTERVAL_S = 0.1            # field time per forward pass (model or injected token)
 POST_SECONDS = 10.0               # sources off afterwards
 BOUNDARY = "noflux"               # or "absorbing"
 RELEASE_TRANSFER = "relu"         # or "softplus"
@@ -62,19 +62,20 @@ def run(api):
         injections = (INJECTION,) if INJECTION else ()
         settings = api.get_config()["settings"]
         result = api.run_continuous(name="activity-run", seed_text=SEED_TEXT, total_tokens=TOKENS, condition="fly",
-                                    decoding="greedy", eos_policy="suppress", snapshot_interval=1, checkpoints=(),
+                                    decoding="greedy", eos_policy="suppress", state_trace=True, checkpoints=(),
                                     cue_target=CUE_TARGET, cue_strength=CUE_STRENGTH, injections=injections,
                                     strength=settings["strength"], feedback=settings["feedback"],
                                     leak_rate=settings["leak_rate"])
         run_dir = Path(result["output"])
+    trace = load_run(run_dir)["state_trace"]
+    if trace is None:
+        raise ValueError("The run must be saved with state_trace=True (one state per forward pass)")
     recorded = load_run(run_dir)
-    steps, states = recorded["states"]["steps"], recorded["states"]["states"]
-    if steps != list(range(steps[0], steps[0] + len(steps))):
-        raise ValueError("The run must be saved with snapshot_interval=1 (one state per token)")
-    cue = {row["step"]: bool(row.get("cue_applied")) for row in recorded["telemetry"]}
-    stimulated = np.array([cue.get(step, False) for step in steps])
-    source = {"run": str(run_dir), "tokens": len(steps), "cue_target": recorded["metadata"]["config"].get("cue_target"),
-              "cued_tokens": int(stimulated.sum()), "state": "reservoir state after each token step"}
+    # One sample per forward pass: injected tokens are passes too (they share one generation step).
+    states, stimulated = trace["states"], trace["cue_applied"].astype(bool)
+    source = {"run": str(run_dir), "forward_passes": len(states), "injected_passes": int((~trace["autonomous"]).sum()),
+              "cue_target": recorded["metadata"]["config"].get("cue_target"), "cued_passes": int(stimulated.sum()),
+              "state": "reservoir state after each forward pass (model and injected tokens)"}
     geometry = load_geometry(graph_dir, anatomy_dir)
     if geometry is None:
         write_outputs(api.output_dir, audit, None, None, source)

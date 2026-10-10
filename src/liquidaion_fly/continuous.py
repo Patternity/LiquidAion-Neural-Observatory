@@ -104,6 +104,9 @@ class ContinuousConfig:
     # Reproducible intervention schedules: (stream position, text) and (stream position, leak).
     injections: tuple = ()
     leak_schedule: tuple = ()
+    # Record-only: the reservoir state after EVERY forward pass (model and injected tokens) in
+    # state_trace.npz. states.npz snapshots are taken per generation step, before its forward pass.
+    state_trace: bool = False
 
     def validate(self) -> None:
         if self.condition not in CONDITIONS:
@@ -283,6 +286,7 @@ class ContinuousRun:
         self.decoder = IncrementalDecoder(self.llm.tokenizer)
         self.forward_calls = 0
         self.reservoir_advances = 0
+        self.trace: list[tuple[int, int, int, bool, bool, np.ndarray]] = []
         self.max_window_seen = len(self.window_ids)
         self.resets: list[int] = []
         self.eos_suppressed: list[dict[str, int]] = []
@@ -448,6 +452,9 @@ class ContinuousRun:
                 self.coupling.cue = None
         self.forward_calls += 1
         self.reservoir_advances += self.last_advances
+        if config.state_trace and self.reservoir is not None:
+            self.trace.append((self.forward_calls - 1, self.step, self.position, bool(cue_applied), autonomous,
+                               self.reservoir.state.copy()))
         suppressed = None
         if autonomous:
             for probe in self.pending_probes:
@@ -723,6 +730,11 @@ class ContinuousRun:
         np.savez_compressed(self.output / "states.npz", steps=np.array(steps, dtype=np.int64),
                             states=np.stack([self.snapshots[s] for s in steps]) if steps else np.empty((0, 0)),
                             **{f"event_{name}": state for name, state in self.event_states.items()})
+        if self.trace:
+            forward, step, position, cue, autonomous, states = zip(*self.trace)
+            np.savez_compressed(self.output / "state_trace.npz", forward=np.array(forward), step=np.array(step),
+                                position=np.array(position), cue_applied=np.array(cue),
+                                autonomous=np.array(autonomous), states=np.stack(states))
         (self.output / "token_ids.json").write_text(json.dumps({"seed": self.seed_ids, "generated": self.generated,
                                                                 "stream": [[t, s] for t, s in self.stream]}) + "\n")
         (self.output / "summary.json").write_text(json.dumps(self.summary(), ensure_ascii=False, indent=2) + "\n")
@@ -741,7 +753,11 @@ def load_run(path: str | Path) -> dict[str, Any]:
     with np.load(path / "states.npz") as data:
         states = {"steps": data["steps"].tolist(), "states": data["states"],
                   "events": {key[len("event_"):]: data[key] for key in data.files if key.startswith("event_")}}
-    return {"metadata": json.loads((path / "metadata.json").read_text()),
+    trace = None
+    if (path / "state_trace.npz").exists():
+        with np.load(path / "state_trace.npz") as data:
+            trace = {key: data[key] for key in data.files}
+    return {"state_trace": trace, "metadata": json.loads((path / "metadata.json").read_text()),
             "summary": json.loads((path / "summary.json").read_text()),
             "tokens": json.loads((path / "token_ids.json").read_text()),
             "telemetry": telemetry, "text": (path / "text.txt").read_text(encoding="utf-8"), "states": states}

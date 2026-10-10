@@ -148,8 +148,8 @@ creates geometry.
 ### Model
 
 - **Activity.** A short Continuous Generation run on the loaded model, optionally with the
-  existing DA cue and one injection, saved with one state per token. Alternatively, an existing
-  run directory saved with `snapshot_interval=1`.
+  existing DA cue and one injection, recorded with one state per forward pass (`state_trace`; injected tokens are forward passes too). Alternatively, an existing
+  run directory saved with `state_trace=True`.
 - **Release proxy.** `target_i = g(gain · (x_i − threshold))`, with `g` = ReLU or softplus,
   for the 16 DA-classified neurons.
   - Reservoir values are signed model activations, not firing rates. Negative values release

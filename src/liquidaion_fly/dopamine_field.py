@@ -110,7 +110,7 @@ class FieldConfig:
     clearance_per_s: float = 0.5         # first-order removal k (illustrative)
     voxel_um: float = 5.0
     margin_um: float = 20.0
-    token_interval_s: float = 0.1        # field time per recorded token step (an explicit mapping)
+    token_interval_s: float = 0.1        # field time per recorded forward pass (an explicit mapping)
     post_seconds: float = 10.0           # sources off afterwards: spread and clearance only
     boundary: str = "noflux"             # "noflux" (Neumann) or "absorbing" (C = 0 outside the box)
     release_transfer: str = "relu"       # "relu" or "softplus" of (gain * (x - threshold))
@@ -362,7 +362,7 @@ def plot_field(directory: Path, result: dict[str, Any], geometry: dict[str, Any]
     def finish(fig, axis, name, ylabel):
         if stop is not None:
             axis.axvline(stop, color="gray", linestyle="--", linewidth=1)
-        axis.set_xlabel("field time (s; token steps × token_interval_s)")
+        axis.set_xlabel("field time (s; forward passes × token_interval_s)")
         axis.set_ylabel(ylabel)
         axis.set_title(label, fontsize=8)
         fig.tight_layout()
