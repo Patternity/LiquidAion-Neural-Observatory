@@ -22,7 +22,7 @@ from .connectome import load_graph, sha256
 from .debuglog import InferenceDebugLog, digest
 from .environment import inspect_environment
 from .llm import Coupling, LocalLLM, compare_logits, stop_token_ids
-from .models import LEGACY_PROFILE, ModelProfile, get_profile, valid_layer_pair
+from .models import LEGACY_PROFILE, ModelProfile, coupling_order, get_profile, valid_layer_pair
 from .recording import OfflineReplay, SessionRecording
 from .reservoir import Reservoir, random_control
 from .telemetry import Telemetry
@@ -63,8 +63,8 @@ class ObservatoryConfig:
             raise ValueError("Context must have at least 16 tokens and reserve generation space")
         if self.max_new_tokens > MAX_NEW_TOKENS_LIMIT:
             raise ValueError(f"max_new_tokens may not exceed {MAX_NEW_TOKENS_LIMIT}")
-        if not 0 <= self.capture_layer < self.steer_layer:
-            raise ValueError("Capture layer must precede the steering layer")
+        if self.capture_layer < 0 or self.steer_layer < 0:
+            raise ValueError("Layer indices must be non-negative")
         if self.features < 1 or self.threads < 1:
             raise ValueError("Features and threads must be positive")
         if any(not np.isfinite(x) or not 0 <= x <= 1 for x in (self.strength, self.feedback)):
@@ -115,10 +115,10 @@ class MeasuredCoupling(Coupling):
         original = output[0] if isinstance(output, tuple) else output
         result = super().steer(module, args, output)
         modified = result[0] if isinstance(result, tuple) else result
-        self.records[-1]["steering_vector_norm"] = float((modified[:, -1].float() - original[:, -1].float()).norm())
-        self.records[-1]["feedback_enabled"] = bool(self.feedback)
-        self.records[-1]["feedback_strength"] = self.feedback
-        self.records[-1]["feedback_state_rms"] = float(np.sqrt(np.mean(self.reservoir.state ** 2)))
+        self.current["steering_vector_norm"] = float((modified[:, -1].float() - original[:, -1].float()).norm())
+        self.current["feedback_enabled"] = bool(self.feedback)
+        self.current["feedback_strength"] = self.feedback
+        self.current["feedback_state_rms"] = float(np.sqrt(np.mean(self.reservoir.state ** 2)))
         return result
 
 
@@ -196,7 +196,7 @@ class ObservatoryEngine:
         layers = self.model_layers()
         if not valid_layer_pair(config.capture_layer, config.steer_layer, layers):
             raise ValueError(f"Layer pair {config.capture_layer} -> {config.steer_layer} is invalid for a "
-                             f"{layers}-layer model (capture 0..{layers - 2}, steering capture+1..{layers - 1})")
+                             f"{layers}-layer model (both must lie in 0..{layers - 1})")
 
     def model_info(self) -> dict[str, Any]:
         """The loaded substrate as measured, for the GUI and every recording."""
@@ -210,6 +210,7 @@ class ObservatoryEngine:
                 "attention": getattr(llm, "attention", None), "load_seconds": getattr(llm, "load_seconds", None),
                 "device": str(self.device), **architecture,
                 "capture_layer": self.config.capture_layer, "steer_layer": self.config.steer_layer,
+                "coupling_order": coupling_order(self.config.capture_layer, self.config.steer_layer),
                 "features": self.config.features, "reservoir_neurons": len(self.node_ids),
                 "projection_fingerprint": self.coupling.projection_fingerprint if hasattr(self, "coupling") else None}
         if self.device.type == "cuda":
@@ -357,6 +358,7 @@ class ObservatoryEngine:
                 self.sessions["fly"].cache = self.sessions["fly"].cached_ids = None
                 self.recording.append("layers_changed", old=list(old_layers),
                                       new=[candidate.capture_layer, candidate.steer_layer],
+                                      order=coupling_order(candidate.capture_layer, candidate.steer_layer),
                                       projection_fingerprint=fingerprint)
             if leak_changed:
                 # The live state is kept; only the update equation changes from the next update on.

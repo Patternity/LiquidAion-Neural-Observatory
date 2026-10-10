@@ -54,5 +54,12 @@ def get_profile(key: str) -> ModelProfile:
 
 
 def valid_layer_pair(capture: int, steer: int, layers: int) -> bool:
-    """Zero-based: capture in [0, N-2], steering in [capture+1, N-1]."""
-    return 0 <= capture <= layers - 2 and capture < steer <= layers - 1
+    """Zero-based: both layers in [0, N-1], in any order, possibly the same layer."""
+    return 0 <= capture < layers and 0 <= steer < layers
+
+
+def coupling_order(capture: int, steer: int) -> str:
+    """Which hook fires first within one forward pass (see docs/MODELS.md)."""
+    if capture < steer:
+        return "capture_first"
+    return "same_layer" if capture == steer else "steer_first"

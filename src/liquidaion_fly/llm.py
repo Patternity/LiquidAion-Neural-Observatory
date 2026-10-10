@@ -16,8 +16,9 @@ class Coupling:
     def __init__(self, reservoir: Reservoir, hidden_size: int, capture_layer: int,
                  steer_layer: int, strength: float = 0.25, feedback: float = 0.25,
                  mode: str = "fly", seed: int = 42):
-        if not 0 <= capture_layer < steer_layer:
-            raise ValueError("Capture layer must precede the intervention layer")
+        # Any pair is allowed: capture may sit below, on or above the steering layer (see _pass_record).
+        if capture_layer < 0 or steer_layer < 0:
+            raise ValueError("Layer indices must be non-negative")
         if not np.isfinite(strength) or not 0 <= strength <= 1:
             raise ValueError("Strength must lie in [0, 1]")
         if not np.isfinite(feedback) or not 0 <= feedback <= 1:
@@ -42,6 +43,7 @@ class Coupling:
         # Optional per-neuron input added to the capture update only (external-origin cue).
         self.cue: np.ndarray | None = None
         self.current: dict[str, Any] = {}
+        self._fired: set[str] = set()
         self.token_position = 0
 
     @property
@@ -58,17 +60,30 @@ class Coupling:
         projection = self.encoder.to(device=x.device)
         return torch.tanh(x @ projection).cpu().numpy()
 
+    def _pass_record(self, hook: str) -> dict[str, Any]:
+        """The record of the current forward pass, opened by whichever hook fires first.
+
+        Layers execute in index order, and hooks on one layer in registration order (capture
+        first), so capture < steer, capture == steer and capture > steer all give one record and
+        two reservoir updates per pass. A hook firing again means a new pass has begun.
+        """
+        if not self._fired or hook in self._fired:
+            self._fired = set()
+            self.current = {"step": len(self.records), "token_position": self.token_position,
+                            "capture_layer": self.capture_layer, "steer_layer": self.steer_layer}
+            self.records.append(self.current)
+        self._fired.add(hook)
+        return self.current
+
     def capture(self, module: Any, args: tuple, output: Any) -> None:
         h = output[0] if isinstance(output, tuple) else output
         if h.ndim != 3 or h.shape[0] != 1:
             raise ValueError("This MVP supports one sequence at a time")
         observation = self.features(h[0, -1])
         self.reservoir.advance(observation, extra=self.cue)
-        self.current = {"step": len(self.records), "token_position": self.token_position,
-                        "sequence_length": h.shape[1], "capture_layer": self.capture_layer,
-                        "steer_layer": self.steer_layer,
-                        "capture_rms": float(h[0, -1].float().square().mean().sqrt()),
-                        "features": observation.tolist()}
+        self._pass_record("capture").update({
+            "sequence_length": h.shape[1], "capture_rms": float(h[0, -1].float().square().mean().sqrt()),
+            "features": observation.tolist()})
 
     def steer(self, module: Any, args: tuple, output: Any) -> Any:
         h = output[0] if isinstance(output, tuple) else output
@@ -94,22 +109,22 @@ class Coupling:
         relative = float(actual_delta.square().mean().sqrt() / baseline_rms.mean().clamp_min(1e-8))
         if not torch.isfinite(modified).all():
             raise FloatingPointError("Nonfinite hidden activation after intervention")
-        self.current.update({"mode": self.mode, "strength": alpha,
+        record = self._pass_record("steer")
+        record.update({"mode": self.mode, "strength": alpha,
                              "before_rms": float(baseline_rms.mean()),
                              "after_rms": float(modified[:, -1, :].float().square().mean().sqrt()),
                              "delta_relative_rms": relative,
                              "state_rms": float(np.sqrt(np.mean(state**2))),
                              "live_reservoir_rms": float(np.sqrt(np.mean(self.reservoir.state**2))),
                              "simulation_time": self.reservoir.time})
-        self.records.append(self.current)
         self.states.append(self.reservoir.state.copy())
         if self.feedback:
-            # Modified activations affect the NEXT forward pass, never their own past.
+            # Modified activations affect later reservoir reads, never their own past.
             feedback_input = self.feedback * self.features(modified[0, -1])
-            self.current["feedback_input_norm"] = float(np.linalg.norm(feedback_input))
+            record["feedback_input_norm"] = float(np.linalg.norm(feedback_input))
             self.reservoir.advance(feedback_input)
         else:
-            self.current["feedback_input_norm"] = 0.0
+            record["feedback_input_norm"] = 0.0
         if isinstance(output, tuple):
             return (modified, *output[1:])
         return modified
@@ -118,8 +133,10 @@ class Coupling:
         if self.handles:
             raise RuntimeError("Coupling is already attached")
         layers = model.model.layers
-        if self.steer_layer >= len(layers):
-            raise ValueError("Intervention layer is outside the model")
+        if max(self.capture_layer, self.steer_layer) >= len(layers):
+            raise ValueError("Coupling layer is outside the model")
+        self._fired = set()
+        # Registration order matters when both hooks share a layer: capture reads the unsteered output.
         self.handles = [layers[self.capture_layer].register_forward_hook(self.capture),
                         layers[self.steer_layer].register_forward_hook(self.steer)]
 
@@ -132,6 +149,7 @@ class Coupling:
         self.records.clear()
         self.states.clear()
         self.current = {}
+        self._fired = set()
         self.static_state = None
 
 

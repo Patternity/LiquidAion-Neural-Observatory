@@ -1,0 +1,132 @@
+{
+  "profile": "qwen3-4b-base",
+  "pairs": [
+    {
+      "capture_layer": 8,
+      "steer_layer": 18,
+      "order": "capture_first",
+      "mean_kl_clean_to_fly": 0.0007849595787766052,
+      "argmax_disagreement": 0.0,
+      "mean_delta_relative_rms": 0.03195392980705947,
+      "tokens_per_second": 12.137219490520406,
+      "reservoir_advances_per_token": 2.0,
+      "text": "Однажды в студёную зимнюю пору моего детства незнакомец, самый настоящий гость, намазал мою шерстяную мокасинку. Ну, разве что совсем споткнулся за мой бутонник, – а добрый хороший коронарный северянин всё-таки расчётливы, и рыжее оно мне н"
+    },
+    {
+      "capture_layer": 18,
+      "steer_layer": 18,
+      "order": "same_layer",
+      "mean_kl_clean_to_fly": 0.0010676358674789471,
+      "argmax_disagreement": 0.0,
+      "mean_delta_relative_rms": 0.03972748604913553,
+      "tokens_per_second": 12.379288412318264,
+      "reservoir_advances_per_token": 2.0,
+      "text": "Однажды в студёную зимнюю пору раннее утро солнечных лучей ещё не светило на лугу, но ужасная вьюга навеивала холодный озноб душившийся человека и даже бессмертного, а непогода во время зимней холода не протерпит души одного человека живого"
+    },
+    {
+      "capture_layer": 18,
+      "steer_layer": 8,
+      "order": "steer_first",
+      "mean_kl_clean_to_fly": 0.0008835672622122395,
+      "argmax_disagreement": 0.0,
+      "mean_delta_relative_rms": 0.03442501393146813,
+      "tokens_per_second": 12.452394551406067,
+      "reservoir_advances_per_token": 2.0,
+      "text": "Однажды в студёную зимнюю пору девочка по имени Маша была одна – остались её родители на зимовке в лесу. Сбившись одеялом, она развесила у себя на потолке нарядные кошмари, через которые она могла забраться. На свечке она зажгла единственну"
+    },
+    {
+      "capture_layer": 34,
+      "steer_layer": 2,
+      "order": "steer_first",
+      "mean_kl_clean_to_fly": 0.0006939439375639348,
+      "argmax_disagreement": 0.0,
+      "mean_delta_relative_rms": 0.03468706815813979,
+      "tokens_per_second": 12.425215310820178,
+      "reservoir_advances_per_token": 2.0,
+      "text": "Однажды в студёную зимнюю пору девочка по имени Маша была права, когда взрослые говорили ей, что на свете жизнь везде разная, каждый в своей области. Она знала и это в детстве было хорошо, потому что всегда стащить вкусняшки из меню негоже,"
+    }
+  ],
+  "checks": [
+    {
+      "check": "c8-s18 (capture_first): hooks fired on the selected layers",
+      "passed": true,
+      "detail": "[(8, 18)]"
+    },
+    {
+      "check": "c8-s18: two reservoir updates per token",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "c8-s18: steering changes the logits",
+      "passed": true,
+      "detail": "KL 7.85e-04"
+    },
+    {
+      "check": "c8-s18: no hooks left",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "c18-s18 (same_layer): hooks fired on the selected layers",
+      "passed": true,
+      "detail": "[(18, 18)]"
+    },
+    {
+      "check": "c18-s18: two reservoir updates per token",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "c18-s18: steering changes the logits",
+      "passed": true,
+      "detail": "KL 1.07e-03"
+    },
+    {
+      "check": "c18-s18: no hooks left",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "c18-s8 (steer_first): hooks fired on the selected layers",
+      "passed": true,
+      "detail": "[(18, 8)]"
+    },
+    {
+      "check": "c18-s8: two reservoir updates per token",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "c18-s8: steering changes the logits",
+      "passed": true,
+      "detail": "KL 8.84e-04"
+    },
+    {
+      "check": "c18-s8: no hooks left",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "c34-s2 (steer_first): hooks fired on the selected layers",
+      "passed": true,
+      "detail": "[(34, 2)]"
+    },
+    {
+      "check": "c34-s2: two reservoir updates per token",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "c34-s2: steering changes the logits",
+      "passed": true,
+      "detail": "KL 6.94e-04"
+    },
+    {
+      "check": "c34-s2: no hooks left",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "passed": true
+}

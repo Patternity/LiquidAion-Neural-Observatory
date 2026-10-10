@@ -10,7 +10,7 @@ import torch
 from transformers import Qwen3Config, Qwen3ForCausalLM
 
 from conftest import TestTokenizer, assert_no_hooks, write_graph
-from liquidaion_fly.continuous import ContinuousConfig, ContinuousRun
+from liquidaion_fly.continuous import ContinuousConfig, ContinuousRun, load_run
 from liquidaion_fly.models import LEGACY_PROFILE, PROFILES, get_profile, valid_layer_pair
 from liquidaion_fly.observatory_engine import ObservatoryConfig, ObservatoryEngine
 
@@ -66,8 +66,9 @@ def test_four_pinned_profiles_and_legacy_revision_unchanged():
 
 def test_layer_pair_rule():
     assert valid_layer_pair(0, 1, 2) and valid_layer_pair(26, 27, 28) and valid_layer_pair(6, 14, 28)
-    assert not valid_layer_pair(27, 28, 28) and not valid_layer_pair(5, 5, 28) and not valid_layer_pair(-1, 3, 28)
-    assert not valid_layer_pair(8, 7, 28)
+    assert valid_layer_pair(5, 5, 28) and valid_layer_pair(8, 7, 28) and valid_layer_pair(27, 0, 28)
+    assert not valid_layer_pair(27, 28, 28) and not valid_layer_pair(28, 3, 28) and not valid_layer_pair(-1, 3, 28)
+    assert not valid_layer_pair(3, -1, 28)
 
 
 def test_projection_dimensions_follow_the_loaded_model_and_switch_releases_old_model(factory, tmp_path):
@@ -128,8 +129,8 @@ def test_same_model_layer_change_keeps_projections_and_state_and_is_used_by_infe
     fly_calls = seen[len(pair["clean"]["token_ids"]):]
     assert fly_calls and all(call == [2, 5] for call in fly_calls), "Hooks sit exactly on the selected layers"
     assert all(len(layer._forward_hooks) <= 1 for layer in layers)
-    for bad in ({"capture_layer": 5, "steer_layer": 5}, {"capture_layer": 2, "steer_layer": 6},
-                {"capture_layer": 5, "steer_layer": 6}):
+    for bad in ({"capture_layer": 6, "steer_layer": 5}, {"capture_layer": 2, "steer_layer": 6},
+                {"capture_layer": -1, "steer_layer": 3}):
         with pytest.raises(ValueError):
             engine.configure(**bad)
     assert (engine.config.capture_layer, engine.config.steer_layer) == (2, 5)
@@ -184,3 +185,21 @@ def test_continuous_generation_runs_on_every_profile_with_correct_updates(factor
         assert all(p["retained_first_logits_equal_main"] for p in summary["probes"])
         assert run.coupling.decoder.shape == (8, hidden)
         assert_no_hooks(engine)
+
+
+@pytest.mark.parametrize("capture, steer, order", [(2, 2, "same_layer"), (4, 1, "steer_first")])
+def test_same_and_reversed_layer_pairs_drive_chat_and_continuous_generation(factory, tmp_path, capture, steer, order):
+    engine = make_engine(tmp_path, model_profile="qwen3-1.7b-base")
+    engine.configure(capture_layer=capture, steer_layer=steer)
+    assert engine.model_info()["coupling_order"] == order
+    assert any(e["type"] == "layers_changed" and e["order"] == order for e in engine.recording.events)
+    pair = engine.generate_pair("Warm")
+    assert pair["fly"]["token_ids"] and pair["clean"]["token_ids"]
+    assert_no_hooks(engine)
+    run = ContinuousRun(engine, ContinuousConfig(seed_text="Once", window=8, total_tokens=12, checkpoints=(4,),
+                                                 probe_tokens=2, injections=((3, "Hi"),)), tmp_path / "run")
+    summary = run.run()
+    assert summary["reservoir_advances"] == 2 * summary["forward_calls"] == 2 * summary["stream_tokens"]
+    rows = load_run(tmp_path / "run")["telemetry"]
+    assert rows and {(r["capture_layer"], r["steer_layer"]) for r in rows} == {(capture, steer)}
+    assert_no_hooks(engine)

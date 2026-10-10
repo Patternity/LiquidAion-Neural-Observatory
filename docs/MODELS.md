@@ -67,11 +67,28 @@ No other hooks exist.
 
 **Rules.**
 
-- Indices are zero-based. For a model with N layers, capture lies in 0…N−2 and steering in
-  capture+1…N−1.
-- The spin boxes take these limits from the loaded model's real layer count. Steering moves
-  up automatically if capture passes it.
-- Invalid pairs are rejected by the engine as well.
+- Indices are zero-based. For a model with N layers, capture and steering each lie in
+  0…N−1, **in any order**. They may be the same layer, and steering may lie below capture.
+- The spin boxes take these limits from the loaded model's real layer count. Neither control
+  moves the other.
+- Pairs outside the model are rejected by the engine as well.
+
+**Hook order.** Within one forward pass, decoder layers run in index order. On a shared
+layer, the two hooks run in registration order, capture first. Every order gives exactly one
+record and two reservoir updates per token: the capture update and the feedback update.
+Nothing reads a later token. The order changes what each hook sees, and the panel shows it.
+
+| Pair | Order in one pass | Meaning |
+|---|---|---|
+| capture < steering (`capture_first`, the default) | capture → steering → feedback | The reservoir sees this token's representation, then steers a deeper layer in the same pass. |
+| capture = steering (`same_layer`) | capture → steering → feedback, on one layer | Capture reads the layer output before the residual is added; steering then modifies that output. |
+| capture > steering (`steer_first`) | steering → feedback → capture | Steering uses the reservoir state left by the previous token (a one-token lag; zero on the first pass after a reset). The deeper capture layer then observes activations that already contain this pass's steering. This is a top-down loop: deep layer → reservoir → shallow layer at the next token. |
+
+The `static` control freezes the state at its first steering read. In `steer_first` order,
+this is the state before the first capture.
+
+The order is stored in model information and recordings as `coupling_order`, and in every
+`layers_changed` event.
 
 **When changes apply.**
 
@@ -215,6 +232,28 @@ measurements, not a ranking of substrates.
 - 4B-Base: identical within 48 tokens.
 
 The quality of the prose is not evidence of anything about the reservoir.
+
+**Layer order.** `scripts/layer_order_acceptance.py`, output in `results/layer-order/`.
+Every order was run on the GPU: Clean vs Fly logits with a 24-token same-prefix comparison,
+then a sampled 120-token continuous Fly run.
+
+- Hooks fired on exactly the selected layers on every token.
+- There were exactly two reservoir updates per token.
+- No hooks were left afterwards.
+
+| Profile | Pair (order) | Mean KL(Clean‖Fly) | ‖Δh‖/‖h‖ |
+|---|---|---|---|
+| Qwen3-0.6B-Base | 6 → 14 (capture first) | 2.5e-3 | 4.1% |
+| Qwen3-0.6B-Base | 14 → 14 (same layer) | 2.2e-3 | 4.5% |
+| Qwen3-0.6B-Base | 14 → 6 (steering first) | 1.6e-3 | 4.2% |
+| Qwen3-0.6B-Base | 26 → 2 (steering first) | 1.3e-3 | 3.6% |
+| Qwen3-4B-Base | 8 → 18 (capture first) | 7.9e-4 | 3.2% |
+| Qwen3-4B-Base | 18 → 18 (same layer) | 1.1e-3 | 4.0% |
+| Qwen3-4B-Base | 18 → 8 (steering first) | 8.8e-4 | 3.4% |
+| Qwen3-4B-Base | 34 → 2 (steering first) | 6.9e-4 | 3.5% |
+
+These come from one prompt per model. They show that every order works; they are not a
+comparison of orders.
 
 **GUI acceptance.** `scripts/gui_acceptance_models.py`, output in
 `results/gui-acceptance-models/`. The script drove real Qt widgets offscreen, with real models,

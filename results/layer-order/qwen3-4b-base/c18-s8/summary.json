@@ -1,0 +1,52 @@
+{
+  "condition": "fly",
+  "reset_interval": null,
+  "stop_reason": "total_tokens",
+  "generated_tokens": 120,
+  "seconds": 9.636700757000199,
+  "tokens_per_second": 12.452394551406067,
+  "window": 128,
+  "max_window_seen": 128,
+  "window_shifts": 5,
+  "forward_calls": 120,
+  "reservoir_advances": 240,
+  "resets": [],
+  "eos_suppressed": [],
+  "peak_gpu_allocated_bytes": 2934228480,
+  "probes": [
+    {
+      "step": 64,
+      "position": 64,
+      "probe_tokens": 8,
+      "context_tokens": 77,
+      "seed_tokens_in_context": 0,
+      "retained_state_rms": 0.17775123997658154,
+      "retained_vs_reset": {
+        "mean_kl_baseline_to_condition": 0.001148192825564609,
+        "first_token_kl": 0.0011248207153154773,
+        "logit_rms_difference": 0.045702576637268066,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_retained": {
+        "mean_kl_baseline_to_condition": 0.0014111091312690894,
+        "first_token_kl": 0.0011248207153154773,
+        "logit_rms_difference": 0.04565482214093208,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "clean_vs_reset": {
+        "mean_kl_baseline_to_condition": 0.0007868305714031866,
+        "first_token_kl": 0.0,
+        "logit_rms_difference": 0.04949919134378433,
+        "argmax_disagreement_fraction": 0.0
+      },
+      "retained_first_logits_equal_main": true,
+      "retained_first_logits_max_abs_diff": 0.0
+    }
+  ],
+  "stream_tokens": 120,
+  "external_tokens": 0,
+  "injections": [],
+  "events": [],
+  "final_leak": 0.2,
+  "final_state_rms": 0.19305725763834963
+}

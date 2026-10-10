@@ -59,7 +59,7 @@ def saved_layers(preferences, profile_key):
     try:
         capture = int(preferences.value(f"model/{profile_key}/capture_layer", profile.capture_layer))
         steer = int(preferences.value(f"model/{profile_key}/steer_layer", profile.steer_layer))
-        return (capture, steer) if 0 <= capture < steer else (profile.capture_layer, profile.steer_layer)
+        return (capture, steer) if min(capture, steer) >= 0 else (profile.capture_layer, profile.steer_layer)
     except (TypeError, ValueError):
         return profile.capture_layer, profile.steer_layer
 

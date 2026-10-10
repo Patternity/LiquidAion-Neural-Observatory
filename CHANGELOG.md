@@ -15,6 +15,9 @@ All notable changes to this project are documented here. Versions follow
 - Adjustable capture and steering layers in a MODEL COUPLING panel.
   - Projection sizes follow the loaded model's hidden size.
   - The selected layers are recorded per run and per token.
+  - Any pair is allowed: capture below, on, or above the steering layer. Each forward pass
+    keeps one record and two reservoir updates in every order; the order is recorded as
+    `coupling_order` (`scripts/layer_order_acceptance.py`).
 - `scripts/model_acceptance.py` and `scripts/gui_acceptance_models.py`; `--model-profile` option.
 - Live external injection into continuous generation.
   - Operator text is tokenized as typed and teacher-forced into the stream at token

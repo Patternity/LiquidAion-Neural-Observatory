@@ -87,3 +87,70 @@ def test_tensor_tuple_preservation():
 def test_comparison_rejects_different_context_shape():
     with pytest.raises(ValueError):
         compare_logits(np.zeros((2, 5)), np.zeros((3, 5)))
+
+
+@pytest.mark.parametrize("capture_layer, steer_layer, order", [
+    (0, 2, ["capture", "steer"]),   # capture below steering: the reservoir sees this token before steering
+    (1, 1, ["capture", "steer"]),   # same layer: capture reads the output before steering modifies it
+    (2, 0, ["steer", "capture"]),   # steering below capture: steering reads the previous token's state
+])
+def test_any_layer_order_one_record_and_two_updates_per_pass(model, capture_layer, steer_layer, order):
+    graph = sparse.csr_matrix([[0., 2., 0.], [0., 0., 4.], [3., 0., 0.]])
+    c = Coupling(Reservoir(graph, features=8), 32, capture_layer, steer_layer, 0.4)
+    fired, advances = [], []
+    capture, steer, advance = c.capture, c.steer, c.reservoir.advance
+    c.capture = lambda *a: (fired.append("capture"), capture(*a))[1]
+    c.steer = lambda *a: (fired.append("steer"), steer(*a))[1]
+    c.reservoir.advance = lambda *a, **k: (advances.append(len(fired)), advance(*a, **k))[1]
+    ids = torch.tensor([[1, 2, 3, 4]])
+    with torch.inference_mode():
+        base = model(ids, use_cache=True).logits
+        c.attach(model)
+        steered = model(ids, use_cache=True)
+        model(torch.tensor([[5]]), past_key_values=steered.past_key_values, use_cache=True)
+        c.detach()
+    assert fired == order * 2
+    assert len(advances) == 4, "Exactly two reservoir updates (capture + feedback) per forward pass"
+    assert [r["step"] for r in c.records] == [0, 1] and [r["sequence_length"] for r in c.records] == [4, 1]
+    assert len(c.states) == 2
+    for record in c.records:
+        assert (record["capture_layer"], record["steer_layer"]) == (capture_layer, steer_layer)
+        assert {"capture_rms", "features", "delta_relative_rms", "feedback_input_norm"} <= set(record)
+    if order[0] == "steer":
+        # The first steering read the untouched initial state; nothing from this pass reached it.
+        np.testing.assert_array_equal(c.states[0], np.zeros(3))
+        assert c.records[0]["delta_relative_rms"] == 0
+    else:
+        assert not np.array_equal(c.states[0], np.zeros(3))
+    assert c.records[1]["delta_relative_rms"] > 0
+    assert torch.equal(base[:, :-1], steered.logits[:, :-1])
+    assert all(len(layer._forward_hooks) == 0 for layer in model.model.layers)
+
+
+def test_same_layer_capture_reads_unsteered_output(model):
+    ids = torch.tensor([[1, 2, 3]])
+    seen = []
+    handle = model.model.layers[1].register_forward_hook(lambda m, a, out: seen.append(out[0] if isinstance(out, tuple)
+                                                                                        else out))
+    with torch.inference_mode():
+        model(ids)
+    handle.remove()
+    unsteered_rms = float(seen[0][0, -1].float().square().mean().sqrt())
+    graph = sparse.csr_matrix([[0., 2., 0.], [0., 0., 4.], [3., 0., 0.]])
+    c = Coupling(Reservoir(graph, features=8), 32, 1, 1, 0.4)
+    c.attach(model)
+    with torch.inference_mode():
+        model(ids)
+    c.detach()
+    assert c.records[0]["capture_rms"] == pytest.approx(unsteered_rms, rel=1e-6)
+    assert c.records[0]["delta_relative_rms"] > 0
+
+
+def test_coupling_rejects_layers_outside_the_model(model):
+    graph = sparse.csr_matrix([[0., 2., 0.], [0., 0., 4.], [3., 0., 0.]])
+    with pytest.raises(ValueError):
+        Coupling(Reservoir(graph, features=8), 32, -1, 1)
+    c = Coupling(Reservoir(graph, features=8), 32, 3, 0)
+    with pytest.raises(ValueError):
+        c.attach(model)
+    assert not c.handles

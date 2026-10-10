@@ -453,23 +453,26 @@ def model_info(profile="qwen3-0.6b", layers=28, hidden=1024, capture=6, steer=14
             "steer_layer": steer, "features": 64, "reservoir_neurons": 512, "projection_fingerprint": "ab" * 32}
 
 
-def test_model_coupling_ranges_follow_layer_count_and_enforce_order(window):
+def test_model_coupling_ranges_follow_layer_count_and_allow_any_order(window):
     calls = []
     window.command.connect(lambda command, payload: calls.append((command, payload)))
     panel = window.model_panel
     window.show_model(model_info())
-    assert (panel.capture.minimum(), panel.capture.maximum()) == (0, 26)
-    assert (panel.steer.minimum(), panel.steer.maximum()) == (7, 27)
+    assert (panel.capture.minimum(), panel.capture.maximum()) == (0, 27)
+    assert (panel.steer.minimum(), panel.steer.maximum()) == (0, 27)
     assert panel.capture_max.text() == "/ 27" and "hidden size:   1024" in panel.dimensions.text()
+    assert panel.order.text().startswith("Order: capture → steering")
     panel.capture.setValue(20)
-    assert panel.steer.value() == 21, "Steering moves above a capture layer that passed it"
-    assert calls[-1] == ("configure", {"capture_layer": 20, "steer_layer": 21})
-    assert panel.state.text().startswith("Pending")
-    window.on_finished("configure", {"capture_layer": 20, "steer_layer": 21})
-    assert panel.state.text() == "Applied: 20 → 21"
+    assert panel.steer.value() == 14, "Steering is never moved by the capture control"
+    assert calls[-1] == ("configure", {"capture_layer": 20, "steer_layer": 14})
+    assert panel.state.text().startswith("Pending") and "steering first" in panel.order.text()
+    window.on_finished("configure", {"capture_layer": 20, "steer_layer": 14})
+    assert panel.state.text() == "Applied: 20 → 14"
     assert int(window.preferences.value("model/qwen3-0.6b/capture_layer")) == 20
+    panel.steer.setValue(20)
+    assert calls[-1] == ("configure", {"capture_layer": 20, "steer_layer": 20}) and "same layer" in panel.order.text()
     window.show_model(model_info("qwen3-4b-base", 36, 2560, 8, 18, "base"))
-    assert panel.capture.maximum() == 34 and panel.steer.maximum() == 35 and panel.capture_max.text() == "/ 35"
+    assert panel.capture.maximum() == 35 and panel.steer.maximum() == 35 and panel.capture_max.text() == "/ 35"
     assert "Raw continuation" in panel.interaction.text() and "Raw text" in window.prompt.placeholderText()
     window._set_busy(True)
     assert not panel.capture.isEnabled() and not panel.load.isEnabled(), "No layer or model changes mid-generation"
@@ -512,5 +515,7 @@ def test_saved_model_preference_applies_at_launch(app, tmp_path):
     preferences.setValue("model/qwen3-4b-base/steer_layer", 30)
     config = apply_preferences(ObservatoryConfig(), preferences)
     assert (config.capture_layer, config.steer_layer) == (10, 30)
+    preferences.setValue("model/qwen3-4b-base/steer_layer", 4)
+    assert (apply_preferences(ObservatoryConfig(), preferences).steer_layer) == 4, "Reversed pairs are kept"
     preferences.setValue("model/profile", "unknown-model")
     assert apply_preferences(ObservatoryConfig(), preferences).model_profile == "qwen3-0.6b"

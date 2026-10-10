@@ -1,0 +1,132 @@
+{
+  "profile": "qwen3-0.6b-base",
+  "pairs": [
+    {
+      "capture_layer": 6,
+      "steer_layer": 14,
+      "order": "capture_first",
+      "mean_kl_clean_to_fly": 0.002472933143229401,
+      "argmax_disagreement": 0.041666666666666664,
+      "mean_delta_relative_rms": 0.0414033088600263,
+      "tokens_per_second": 26.03622808396536,
+      "reservoir_advances_per_token": 2.0,
+      "text": "Однажды в студёную зимнюю пору Александра просил Эстеблеу денег\nЭстеблея Зеленишёва вошёл в дома, которым в меньшей степени она принадлежала. А она знает тактику Уппс, что в одном разговоре не уверяла, что все просто. Перед ней девушка пред"
+    },
+    {
+      "capture_layer": 14,
+      "steer_layer": 14,
+      "order": "same_layer",
+      "mean_kl_clean_to_fly": 0.0021489415595934906,
+      "argmax_disagreement": 0.08333333333333333,
+      "mean_delta_relative_rms": 0.04472367255948484,
+      "tokens_per_second": 26.99513955346937,
+      "reservoir_advances_per_token": 2.0,
+      "text": "Однажды в студёную зимнюю пору Александра просил спойлер обратить внимание на новый телефон и предложить себе развлекающийся подарок. Катя, зато попросила электронную компанию отправить ему забесплатную последнюю версию и отзывы по телефону"
+    },
+    {
+      "capture_layer": 14,
+      "steer_layer": 6,
+      "order": "steer_first",
+      "mean_kl_clean_to_fly": 0.0015544408454078347,
+      "argmax_disagreement": 0.0,
+      "mean_delta_relative_rms": 0.041809645326187216,
+      "tokens_per_second": 25.881974027554605,
+      "reservoir_advances_per_token": 2.0,
+      "text": "Однажды в студёную зимнюю пору Александра просил друга Джессе радушную поруговость. Друг крикнул, что им не может, хотя в кино он приехал в четверг. У него ничего из репозиции, а в студии было темно и дремли ледяные пенки. К тому же студент"
+    },
+    {
+      "capture_layer": 26,
+      "steer_layer": 2,
+      "order": "steer_first",
+      "mean_kl_clean_to_fly": 0.0012845255858756808,
+      "argmax_disagreement": 0.041666666666666664,
+      "mean_delta_relative_rms": 0.03585096863874545,
+      "tokens_per_second": 26.80614652894993,
+      "reservoir_advances_per_token": 2.0,
+      "text": "Однажды в студёную зимнюю пору Александра просил друга помогнуть еше что может по своей совестью. Если Светиша в ближайшее число решила выручать ребёнка от неё даже он не смог что нужно.  Светиша воспринимает он к слову как приглашенный. Он"
+    }
+  ],
+  "checks": [
+    {
+      "check": "c6-s14 (capture_first): hooks fired on the selected layers",
+      "passed": true,
+      "detail": "[(6, 14)]"
+    },
+    {
+      "check": "c6-s14: two reservoir updates per token",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "c6-s14: steering changes the logits",
+      "passed": true,
+      "detail": "KL 2.47e-03"
+    },
+    {
+      "check": "c6-s14: no hooks left",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "c14-s14 (same_layer): hooks fired on the selected layers",
+      "passed": true,
+      "detail": "[(14, 14)]"
+    },
+    {
+      "check": "c14-s14: two reservoir updates per token",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "c14-s14: steering changes the logits",
+      "passed": true,
+      "detail": "KL 2.15e-03"
+    },
+    {
+      "check": "c14-s14: no hooks left",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "c14-s6 (steer_first): hooks fired on the selected layers",
+      "passed": true,
+      "detail": "[(14, 6)]"
+    },
+    {
+      "check": "c14-s6: two reservoir updates per token",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "c14-s6: steering changes the logits",
+      "passed": true,
+      "detail": "KL 1.55e-03"
+    },
+    {
+      "check": "c14-s6: no hooks left",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "c26-s2 (steer_first): hooks fired on the selected layers",
+      "passed": true,
+      "detail": "[(26, 2)]"
+    },
+    {
+      "check": "c26-s2: two reservoir updates per token",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "c26-s2: steering changes the logits",
+      "passed": true,
+      "detail": "KL 1.28e-03"
+    },
+    {
+      "check": "c26-s2: no hooks left",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "passed": true
+}

@@ -9,7 +9,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QPushButton, QSpinBox,
                                QVBoxLayout, QWidget)
 
-from .models import LEGACY_PROFILE, PROFILES
+from .models import LEGACY_PROFILE, PROFILES, coupling_order
 
 
 def describe(info: dict) -> str:
@@ -18,6 +18,13 @@ def describe(info: dict) -> str:
     return (f"{info['display']} · {info['kind']} · {quantization} · {info.get('attention')} attention\n"
             f"{info['num_hidden_layers']} layers · hidden {info['hidden_size']} · rev {info['revision'][:10]} · "
             f"{info.get('device')}")
+
+
+ORDER_TEXT = {
+    "capture_first": "Order: capture → steering in the same pass",
+    "same_layer": "Order: same layer — capture reads the output before steering",
+    "steer_first": "Order: steering first (reservoir state from the previous token), then capture",
+}
 
 
 def interaction_label(info: dict) -> str:
@@ -72,9 +79,13 @@ class ModelPanel(QWidget):
         self.steer.setToolTip("Decoder layer whose last-token hidden state receives the reservoir steering")
         self.dimensions = QLabel("")
         self.dimensions.setStyleSheet("font-family:monospace;color:#91a9cd;font-size:10px")
+        self.order = QLabel("")
+        self.order.setWordWrap(True)
+        self.order.setStyleSheet("color:#f5d285;font-size:10px")
         self.state = QLabel("")
         self.state.setStyleSheet("color:#8c9fbd;font-size:10px")
         form.addRow(self.dimensions)
+        form.addRow(self.order)
         form.addRow(self.state)
         layout.addWidget(coupling)
         self.capture.valueChanged.connect(self._capture_changed)
@@ -89,10 +100,10 @@ class ModelPanel(QWidget):
         layers = int(info["num_hidden_layers"])
         for spin in (self.capture, self.steer):
             spin.blockSignals(True)
-        self.capture.setRange(0, layers - 2)
-        self.capture.setValue(int(info["capture_layer"]))
-        self.steer.setRange(self.capture.value() + 1, layers - 1)
-        self.steer.setValue(int(info["steer_layer"]))
+        # Any pair is valid, including the same layer and steering below capture.
+        for spin, key in ((self.capture, "capture_layer"), (self.steer, "steer_layer")):
+            spin.setRange(0, layers - 1)
+            spin.setValue(int(info[key]))
         for spin in (self.capture, self.steer):
             spin.blockSignals(False)
         self.capture_max.setText(f"/ {layers - 1}")
@@ -103,12 +114,12 @@ class ModelPanel(QWidget):
         self.dimensions.setText(f"Model hidden size: {info['hidden_size']:>6}\nReservoir features: {info['features']:>5}\n"
                                 f"Reservoir neurons: {info['reservoir_neurons']:>6}\nProjections: {fingerprint[:12]}")
         self.state.setText(f"Applied: {info['capture_layer']} → {info['steer_layer']}")
+        self._show_order()
+
+    def _show_order(self):
+        self.order.setText(ORDER_TEXT[coupling_order(self.capture.value(), self.steer.value())])
 
     def _capture_changed(self, value):
-        # Keep steering valid: it must stay strictly above capture.
-        self.steer.blockSignals(True)
-        self.steer.setMinimum(value + 1)
-        self.steer.blockSignals(False)
         self._request()
 
     def _steer_changed(self, value):
@@ -117,6 +128,7 @@ class ModelPanel(QWidget):
     def _request(self):
         if self.info is None:
             return
+        self._show_order()
         pair = (self.capture.value(), self.steer.value())
         if pair == (self.info["capture_layer"], self.info["steer_layer"]):
             self.state.setText(f"Applied: {pair[0]} → {pair[1]}")
