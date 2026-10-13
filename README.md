@@ -123,7 +123,7 @@ rate, blue a negative one; brightness is |state| / 0.3.*
 
 | | GPU (default) | CPU validation | Offline replay |
 |---|---|---|---|
-| OS | Linux x86_64 with a desktop session | Linux x86_64 | Linux x86_64 |
+| OS | Linux x86_64 with a desktop session (tested); Windows with NVIDIA through the launcher | Linux, Windows, macOS (launcher installs and test suite checked in CI) | any of these |
 | Python | 3.12 | 3.12 | 3.12 |
 | Hardware | NVIDIA GPU; 8 GB tested (the default 4096-token context peaks at ≈ 3.7 GiB) | ≥ 8 GB RAM | — |
 | Disk space: Python environment | ≈ 8.1 GB (PyTorch CUDA 12.8 build plus NVIDIA libraries) | ≈ 2.5 GB | ≈ 2.5 GB |
@@ -135,7 +135,46 @@ or `$HF_HOME`) at the pinned revision `c1899de289a04d12100db370d81485cdf75e47ca`
 existing cache is reused. The launcher installs packages with `--no-cache-dir`, so pip does
 not keep a second copy of the multi-gigabyte wheels.
 
-## Quick start
+## Download and run (Windows, Linux, macOS)
+
+1. Download `LiquidAion-Observatory-<version>.zip` from the
+   [latest release](https://github.com/Patternity/LiquidAion-Neural-Observatory/releases/latest)
+   and unpack it to a folder with about 12 GB free.
+2. Start the launcher for your system:
+
+   | System | Launcher |
+   |---|---|
+   | Windows | double-click `LiquidAion-Windows.bat` |
+   | Linux | run `./liquidaion-linux.sh` |
+   | macOS | double-click `LiquidAion-macOS.command`. If macOS blocks it, right-click → Open, or run `xattr -dr com.apple.quarantine .` in the folder. |
+
+**First run.** It needs an internet connection and takes several minutes. Everything stays in
+the unpacked folder, except the model weights, which go to the standard Hugging Face cache.
+The launcher installs:
+
+1. the [uv](https://docs.astral.sh/uv/) package manager (a pinned version) and Python 3.12,
+   into `.tools/`;
+2. PyTorch 2.8.0 and the pinned dependencies, into `.liquidaion-env/`;
+3. Qwen3-0.6B (about 1.5 GB), downloaded when the Observatory starts.
+
+**PyTorch build by hardware:**
+
+| Hardware | Build | Notes |
+|---|---|---|
+| NVIDIA GPU (Windows, Linux) | CUDA 12.8 | Needs a recent NVIDIA driver. Includes 4-bit NF4 support for the Qwen3-4B profile. |
+| AMD GPU (Linux) | ROCm 6.4 | Not tested by the authors. No NF4, so the 4B profile is unavailable. |
+| Anything else, including macOS and AMD on Windows | CPU | Works, slower; use the 0.6B/1.7B profiles. |
+
+**Launcher options:**
+
+- `--cpu`, `--cuda` or `--rocm` overrides the automatic hardware choice;
+- `--reinstall` rebuilds the environment;
+- `--check` installs and runs the test suite headless, without the GUI.
+
+Later runs start immediately. To remove everything, delete the folder (and the Qwen models
+from `~/.cache/huggingface` if you want).
+
+## Quick start (from a git checkout)
 
 ```bash
 git clone https://github.com/Patternity/LiquidAion-Neural-Observatory.git

@@ -1,0 +1,19 @@
+# Exact versions for the download-and-run launchers (scripts/bootstrap.py), as validated on
+# Linux x86_64 / Python 3.12. PyTorch 2.8.0 itself comes from the CUDA 12.8 or CPU index.
+transformers==4.56.2
+tokenizers==0.22.2
+huggingface-hub==0.36.2
+safetensors==0.8.0
+numpy==2.3.5
+scipy==1.17.0
+pandas==2.2.3
+matplotlib==3.10.8
+PySide6==6.12.0
+pyvista==0.46.5
+pyvistaqt==0.11.4
+vtk==9.5.2
+pillow==12.3.0
+packaging==26.3
+pytest==9.1.1
+bitsandbytes==0.48.2
+accelerate==1.10.1

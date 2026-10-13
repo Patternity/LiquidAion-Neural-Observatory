@@ -14,3 +14,5 @@ results/debug/
 liquidaion-session*.json
 # Python plugin results (personal experiment output)
 results/plugins/
+.tools/
+.liquidaion-env/

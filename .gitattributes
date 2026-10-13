@@ -1,0 +1,7 @@
+# Checksummed data must keep its exact bytes on every platform (no CRLF conversion).
+data/** -text
+tests/fixtures/** -text
+# Launchers keep their native line endings.
+*.sh text eol=lf
+*.command text eol=lf
+*.bat text eol=crlf

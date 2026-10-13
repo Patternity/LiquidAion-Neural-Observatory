@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "liquidaion-fly"
-version = "0.3.0.dev0"
+version = "0.3.0"
 description = "Research software coupling a frozen Qwen3-0.6B transformer to a recurrent network built from authentic FlyWire Drosophila connectivity"
 readme = "README.md"
 license = "MIT"
@@ -17,6 +17,8 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
     "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Scientific/Engineering :: Bio-Informatics",

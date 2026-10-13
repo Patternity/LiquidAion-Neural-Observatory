@@ -5,7 +5,17 @@ All notable changes to this project are documented here. Versions follow
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-13
+
 ### Added
+- Download-and-run launchers for Windows, Linux and macOS.
+  - The launchers are `LiquidAion-Windows.bat`, `liquidaion-linux.sh` and
+    `LiquidAion-macOS.command`.
+  - On the first run they install a pinned `uv` and Python 3.12, then PyTorch 2.8.0 and the
+    pinned dependencies (`constraints.txt`) into `.liquidaion-env/`.
+  - The PyTorch build follows the hardware: CUDA 12.8 for NVIDIA, ROCm 6.4 for AMD on Linux
+    (untested), otherwise CPU.
+  - `--check` installs and runs the test suite headless.
 - Plugin-first architecture (`docs/PLUGINS.md`, `docs/PLUGIN_DEVELOPMENT_GUIDE.md`).
   - One registry (`plugin_api`) for model adapters, connectomes, reservoirs, neural interfaces,
     coupling policies, modulation, experiments and Qt panels.

@@ -9,13 +9,16 @@ abstract: >-
   materialization 783). It provides a desktop observatory with an anatomically registered
   3D view, controlled same-prefix experiments (coupling, random-topology control,
   persistent versus reset state), session recording and replay, and diagnostics for
-  context isolation and repetition.
+  context isolation and repetition. Version 0.3.0 adds selectable Qwen3 models, multi-layer
+  Neural Bypass, Python experiment plugins, steering and leak-rate diagnostics, and a
+  plugin-first architecture in which the neural interface, coupling policy, connectome,
+  reservoir dynamics and GUI panels are replaceable components.
 authors:
   - given-names: Lexx
     family-names: Xell
     affiliation: Patternity
-version: 0.2.0
-date-released: "2026-10-09"
+version: 0.3.0
+date-released: "2026-10-13"
 license: MIT
 doi: 10.5281/zenodo.23265197
 identifiers:
