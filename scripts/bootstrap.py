@@ -159,7 +159,7 @@ def main() -> int:
     if "--reinstall" in flags or installed.get("mode") != mode or installed.get("torch") != TORCH \
             or not env_python().exists():
         install(uv, mode)
-    say(f"Mode: {mode.upper()} · environment {ENV}")
+    say(f"Mode: {mode.upper()}, environment {ENV}")
     env = runtime_env()
     python = str(env_python())
     device = ["--cpu"] if mode == "cpu" and "--cpu" not in passthrough else []

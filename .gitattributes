@@ -1,5 +1,7 @@
 # Checksummed data must keep its exact bytes on every platform (no CRLF conversion).
 data/** -text
+configs/** -text
+MANIFEST.sha256.json -text
 tests/fixtures/** -text
 # Launchers keep their native line endings.
 *.sh text eol=lf
