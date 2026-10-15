@@ -26,6 +26,9 @@ identifiers:
     value: 10.5281/zenodo.23265197
     description: "Concept DOI: all versions, resolves to the latest"
   - type: doi
+    value: 10.5281/zenodo.23398508
+    description: "Version-specific DOI for release 0.3.0"
+  - type: doi
     value: 10.5281/zenodo.23265198
     description: "Version-specific DOI for release 0.2.0"
 repository-code: "https://github.com/Patternity/LiquidAion-Neural-Observatory"

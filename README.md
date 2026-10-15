@@ -438,8 +438,10 @@ graph hashes do not match. A third-party license summary is in
   degree sequence or the strongly connected structure.
 - **Eager attention.** Eager attention limits prompts on 8 GB GPUs to about 5k tokens.
   Recordings keep at most 10,000 events, so long sessions drop their earliest events.
-- **Linux only.** Native interactive rendering was used on the owner's Linux desktop. CI runs
-  headless and on CPU only. macOS and Windows are untested.
+- **Platforms.** Interactive use and GPU runs were tested on Linux with an NVIDIA GPU.
+  On Windows and macOS, the launchers' installation and the headless test suite are checked in
+  CI on the CPU. Interactive use there, NVIDIA on Windows and AMD ROCm on Linux are not yet
+  tested by the authors.
 
 ## Development
 
@@ -472,16 +474,17 @@ The software is archived on Zenodo. There are two DOIs:
 | DOI | Use it for |
 |---|---|
 | [`10.5281/zenodo.23265197`](https://doi.org/10.5281/zenodo.23265197) | The project across all versions (concept DOI). It always resolves to the latest version. |
+| [`10.5281/zenodo.23398508`](https://doi.org/10.5281/zenodo.23398508) | Exactly version 0.3.0: plugin architecture, launchers, model profiles, Neural Bypass, research plugins. |
 | [`10.5281/zenodo.23265198`](https://doi.org/10.5281/zenodo.23265198) | Exactly version 0.2.0, for reproducing the results in this README. |
 
 ```bibtex
 @software{xell_liquidaion_2026,
   author    = {Xell, Lexx},
   title     = {LiquidAion Neural Observatory},
-  version   = {0.2.0},
+  version   = {0.3.0},
   publisher = {Zenodo},
   year      = {2026},
-  doi       = {10.5281/zenodo.23265198},
+  doi       = {10.5281/zenodo.23398508},
   url       = {https://github.com/Patternity/LiquidAion-Neural-Observatory}
 }
 ```
