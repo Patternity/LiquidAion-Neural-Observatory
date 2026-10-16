@@ -179,6 +179,12 @@ def test_components_panel_selects_plugin_interface_and_defers_connectome(make_wi
     assert commands[-1] == ("configure", {"components": {"neural_interface": "example_research_interface.gated"},
                                           "component_params": {"example_research_interface.gated":
                                                                {"gate_gain": 10.0, "floor": 1e-6}}})
+    window.on_finished("configure", {"components": {"neural_interface": "example_research_interface.gated",
+                                                     "coupling": "builtin.coupling.auto"}, "component_params": {}})
+    assert row["combo"].currentData() == "example_research_interface.gated", "The panel shows the running component"
+    window.on_finished("configure", {"components": {"neural_interface": "builtin.interface.original"},
+                                     "component_params": {}})
+    assert row["combo"].currentData() == "builtin.interface.original"
     connectome = panel.rows["connectome"]
     connectome["combo"].setCurrentIndex(connectome["combo"].findData("builtin.connectome.random_control"))
     count = len(commands)

@@ -598,6 +598,13 @@ class ComponentPanel(QWidget):
     def _configured(self, name, settings):
         self.selection = dict(settings.get("components") or self.selection)
         self.params = dict(settings.get("component_params") or self.params)
+        # Show what the engine actually runs (a plugin panel or a script may have changed it).
+        for category, row in self.rows.items():
+            if category == "connectome":
+                continue  # chosen for the next launch; the engine reports the running one
+            index = row["combo"].findData(self.selection.get(category))
+            if index >= 0 and index != row["combo"].currentIndex():
+                row["combo"].setCurrentIndex(index)
         self.message.setText("Active: " + ", ".join(f"{k.split('_')[0]}={v.split('.')[-1]}"
                                                      for k, v in self.selection.items() if k != "model_adapter"))
 
